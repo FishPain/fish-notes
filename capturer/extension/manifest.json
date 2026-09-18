@@ -8,7 +8,7 @@
   "options_page": "options.html",
   "commands": {
     "capture-selection": {
-      "suggested_key": { "default": "Ctrl+N", "mac": "Command+N" },
+      "suggested_key": { "default": "Ctrl+Shift+S", "mac": "Command+Shift+S" },
       "description": "Capture the current selection"
     }
   },

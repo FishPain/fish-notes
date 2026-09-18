@@ -3,7 +3,7 @@ import { object, string, array } from 'yup'
 import Database from 'better-sqlite3'
 import { httpErrors, Reason, throwHttpError } from '../../utils/http-errors.js'
 import { asyncHandler } from '../../utils/async-handler.js'
-import { insertCapture, listCaptures } from '../../capture.service.js'
+import { insertCapture, listCaptures, deleteCapture } from '../../capture.service.js'
 import { CaptureInput } from '../../types.js'
 
 const CaptureSchema = object({
@@ -42,6 +42,12 @@ export const captureController = (db: Database.Database): Router => {
   )
 
   router.get('/', (_req, res) => res.json(listCaptures(db)))
+
+  // Idempotent: deleting a missing id is a no-op and still 204.
+  router.delete('/:id', (req, res) => {
+    deleteCapture(db, Number(req.params.id))
+    res.status(204).end()
+  })
 
   return router
 }

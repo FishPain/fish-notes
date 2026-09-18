@@ -66,6 +66,25 @@ describe('server', () => {
     server.close()
   })
 
+  it('deletes a capture by id', async () => {
+    const server = makeServer()
+    const { port } = server.address() as { port: number }
+    const base = `http://localhost:${port}`
+    const headers = { 'content-type': 'application/json', authorization: `Bearer ${TOKEN}` }
+    const created = await (
+      await fetch(`${base}/capture`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ content: 'delete me', source: { type: 'web' } })
+      })
+    ).json()
+    const del = await fetch(`${base}/capture/${created.id}`, { method: 'DELETE', headers })
+    expect(del.status).toBe(204)
+    const all = (await (await fetch(`${base}/capture`, { headers })).json()) as unknown[]
+    expect(all).toHaveLength(0)
+    server.close()
+  })
+
   it('a failing async handler yields 500, not a hang', async () => {
     const db = openDb(':memory:')
     const app = buildServer(

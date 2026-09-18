@@ -44,7 +44,7 @@ export const CanvasList = (): React.ReactElement => {
         <ListItemText primary="Search" sx={{ ml: 1 }} />
       </ListItemButton>
 
-      <Typography variant="overline" sx={{ opacity: 0.6 }}>Canvases</Typography>
+      <Typography variant="overline" sx={{ opacity: 0.6 }}>Notes</Typography>
       <List dense>
         {(canvases.data || []).map((c) => (
           <ListItemButton
@@ -62,7 +62,7 @@ export const CanvasList = (): React.ReactElement => {
         <TextField
           size="small"
           fullWidth
-          placeholder="New canvas title…"
+          placeholder="New note title…"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={(e) => {

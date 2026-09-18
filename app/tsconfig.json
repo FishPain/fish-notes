@@ -9,5 +9,5 @@
     "resolveJsonModule": true,
     "outDir": "dist"
   },
-  "include": ["src", "test", "electron"]
+  "include": ["src", "test", "electron", "renderer"]
 }

@@ -1,7 +1,7 @@
 import { generateText } from 'ai'
 import { AiConfig, createModel } from './model.js'
 import { RawSegment } from './types.js'
-import { GenerateSegmentsFn } from './collate.service.js'
+import { GenerateSegmentsFn } from './draft.service.js'
 
 type TextFn = (prompt: string) => Promise<string>
 

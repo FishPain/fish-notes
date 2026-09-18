@@ -10,25 +10,23 @@ const makeServer = () => {
 }
 
 describe('canvas routes', () => {
-  it('creates a canvas, lists it, collates it', async () => {
+  it('creates, saves the doc, and drafts', async () => {
     const server = makeServer()
     const { port } = server.address() as { port: number }
     const base = `http://localhost:${port}`
     const headers = { 'content-type': 'application/json', authorization: `Bearer ${TOKEN}` }
 
-    const created = await (
-      await fetch(`${base}/canvas`, { method: 'POST', headers, body: JSON.stringify({ title: 'New Agent' }) })
-    ).json()
+    const created = await (await fetch(`${base}/canvas`, { method: 'POST', headers, body: JSON.stringify({ title: 'New Agent' }) })).json()
     expect(created.id).toBeGreaterThan(0)
 
-    const list = (await (await fetch(`${base}/canvas`, { headers })).json()) as { title: string }[]
-    expect(list[0].title).toBe('New Agent')
+    const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'my note' }] }] }
+    const saved = await fetch(`${base}/canvas/${created.id}`, { method: 'PATCH', headers, body: JSON.stringify({ doc }) })
+    expect(saved.status).toBe(200)
+    const got = await (await fetch(`${base}/canvas/${created.id}`, { headers })).json()
+    expect(got.doc).toEqual(doc)
 
-    const collated = (await (
-      await fetch(`${base}/canvas/${created.id}/collate`, { method: 'POST', headers })
-    ).json()) as { doc: { heading: string; origin: string }[] }
-    expect(collated.doc[0].heading).toBe('H')
-    expect(collated.doc[0].origin).toBe('ai')
+    const draft = await (await fetch(`${base}/canvas/${created.id}/draft`, { method: 'POST', headers })).json()
+    expect(draft.sections[0].heading).toBe('H')
 
     server.close()
   })
@@ -36,8 +34,7 @@ describe('canvas routes', () => {
   it('returns 404 for a missing canvas', async () => {
     const server = makeServer()
     const { port } = server.address() as { port: number }
-    const headers = { authorization: `Bearer ${TOKEN}` }
-    const res = await fetch(`http://localhost:${port}/canvas/9999`, { headers })
+    const res = await fetch(`http://localhost:${port}/canvas/9999`, { headers: { authorization: `Bearer ${TOKEN}` } })
     expect(res.status).toBe(404)
     server.close()
   })

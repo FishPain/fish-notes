@@ -1,7 +1,7 @@
 import express, { Application, Request, Response, NextFunction } from 'express'
 import Database from 'better-sqlite3'
 import { GenerateFn } from './ask.service.js'
-import { GenerateSegmentsFn } from './collate.service.js'
+import { GenerateSegmentsFn } from './draft.service.js'
 import { errorHandler } from './utils/http-errors.js'
 import { routes } from './routes.js'
 

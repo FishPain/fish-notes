@@ -26,8 +26,16 @@ const SCHEMA = [
    )`
 ]
 
+// Add a column to an existing table if it's missing (SQLite has no
+// ADD COLUMN IF NOT EXISTS), so schema additions don't require wiping the DB.
+const ensureColumn = (db: Database.Database, table: string, column: string, ddl: string): void => {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]
+  if (!cols.some((c) => c.name === column)) db.prepare(`ALTER TABLE ${table} ADD COLUMN ${ddl}`).run()
+}
+
 const migrate = (db: Database.Database): void => {
   for (const statement of SCHEMA) db.prepare(statement).run()
+  ensureColumn(db, 'canvases', 'description', "description TEXT NOT NULL DEFAULT ''")
 }
 
 export const openDb = (path: string): Database.Database => {

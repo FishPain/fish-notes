@@ -29,18 +29,32 @@ export const canvasController = (db: Database.Database, generateSegments: Genera
 
   router.get('/:id', (req, res) => {
     const canvas = getCanvas(db, Number(req.params.id))
-    return canvas ? res.json(canvas) : res.status(404).json({ error: 'not found' })
+    if (!canvas) {
+      throwHttpError(httpErrors.notFound, Reason.NotFound, res)
+      return
+    }
+    res.json(canvas)
   })
 
   router.patch('/:id/segments/:segmentId', (req, res) => {
-    updateSegment(db, Number(req.params.id), req.params.segmentId, String(req.body.text ?? ''))
-    res.json(getCanvas(db, Number(req.params.id)))
+    const id = Number(req.params.id)
+    if (!getCanvas(db, id)) {
+      throwHttpError(httpErrors.notFound, Reason.NotFound, res)
+      return
+    }
+    updateSegment(db, id, req.params.segmentId, String(req.body.text ?? ''))
+    res.json(getCanvas(db, id))
   })
 
   router.post(
     '/:id/collate',
     asyncHandler(async (req, res) => {
-      const doc = await collate(db, Number(req.params.id), generateSegments)
+      const id = Number(req.params.id)
+      if (!getCanvas(db, id)) {
+        throwHttpError(httpErrors.notFound, Reason.NotFound, res)
+        return
+      }
+      const doc = await collate(db, id, generateSegments)
       res.json({ doc })
     })
   )

@@ -32,4 +32,13 @@ describe('canvas routes', () => {
 
     server.close()
   })
+
+  it('returns 404 for a missing canvas', async () => {
+    const server = makeServer()
+    const { port } = server.address() as { port: number }
+    const headers = { authorization: `Bearer ${TOKEN}` }
+    const res = await fetch(`http://localhost:${port}/canvas/9999`, { headers })
+    expect(res.status).toBe(404)
+    server.close()
+  })
 })

@@ -43,7 +43,7 @@ export const collate = async (
     heading: r.heading,
     text: r.text,
     origin: 'ai',
-    citations: r.citations.filter((id) => allowed.has(id))
+    citations: [...new Set(r.citations.filter((id) => allowed.has(id)))]
   }))
 
   // Re-insert locked segments at their original indices (clamped) among AI ones.

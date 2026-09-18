@@ -70,12 +70,24 @@ const promptNote = (content: string, contextText: string): void => {
   input.focus();
 };
 
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg?.type !== 'do-capture') return;
-  const { content, contextText } = extractSelection(window.getSelection());
-  if (!content) {
-    toast('Select some text first');
-    return;
+declare global {
+  interface Window {
+    __canvasNotesInjected?: boolean;
   }
-  promptNote(content, contextText);
-});
+}
+
+// The content script can be injected twice (manifest content_scripts + the
+// background's executeScript fallback). Register the listener only once, or
+// duplicate listeners fire and the capture flow breaks on repeat use.
+if (!window.__canvasNotesInjected) {
+  window.__canvasNotesInjected = true;
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg?.type !== 'do-capture') return;
+    const { content, contextText } = extractSelection(window.getSelection());
+    if (!content) {
+      toast('Select some text first');
+      return;
+    }
+    promptNote(content, contextText);
+  });
+}

@@ -32,6 +32,20 @@ Browser / screen ──capture──▶ Electron app
                                 LLM via Vercel AI SDK → Claude or Ollama
 ```
 
+## Development
+
+The engine's native SQLite addon is built for **Node 24**, so use it (via `nvm`):
+
+```bash
+cd app
+nvm use            # reads app/.nvmrc → Node 24
+CANVAS_TOKEN=dev npx tsx src/index.ts
+```
+
+Running on another Node major (e.g. the system default) exits early with a clear
+message — it does not crash. Node version stops mattering once the engine is
+packaged inside Electron (which ships its own runtime).
+
 ## Tech
 
 Electron + React + TypeScript · MUI · TanStack Query · zustand · TipTap

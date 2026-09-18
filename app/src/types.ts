@@ -44,7 +44,7 @@ export interface Canvas {
   id: number
   title: string
   description: string
-  doc: Segment[]
+  doc: unknown
   updatedAt: string
   collatedAt: string
 }

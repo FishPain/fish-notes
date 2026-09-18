@@ -1,45 +1,25 @@
 import { describe, it, expect } from 'vitest'
 import { openDb } from '../src/db.js'
-import { createCanvas, getCanvas, listCanvases, saveDoc, updateSegment } from '../src/canvas.service.js'
-import { Segment } from '../src/types.js'
-
-const seg = (over: Partial<Segment>): Segment => ({
-  id: 'x',
-  heading: '',
-  text: 't',
-  origin: 'ai',
-  citations: [],
-  ...over
-})
+import { createCanvas, getCanvas, listCanvases, saveDoc } from '../src/canvas.service.js'
 
 describe('canvas.service', () => {
-  it('creates, lists, and reads a canvas with title, description, and an empty doc', () => {
+  it('creates a canvas with an empty doc and reads title/description back', () => {
     const db = openDb(':memory:')
-    const id = createCanvas(db, 'New Agent', 'internal systems for the agent build')
+    const id = createCanvas(db, 'New Agent', 'internal systems')
     expect(listCanvases(db).map((c) => c.title)).toContain('New Agent')
     const c = getCanvas(db, id)!
     expect(c.title).toBe('New Agent')
-    expect(c.description).toBe('internal systems for the agent build')
-    expect(c.doc).toEqual([])
+    expect(c.description).toBe('internal systems')
+    expect(c.doc).toEqual({ type: 'doc', content: [] })
     db.close()
   })
 
-  it('saves a doc and reads it back', () => {
+  it('saves an arbitrary doc (opaque JSON) and reads it back', () => {
     const db = openDb(':memory:')
     const id = createCanvas(db, 'C')
-    saveDoc(db, id, [seg({ id: 's1', text: 'hello' })])
-    expect(getCanvas(db, id)!.doc[0].text).toBe('hello')
-    db.close()
-  })
-
-  it('updateSegment locks the segment as user-origin with new text', () => {
-    const db = openDb(':memory:')
-    const id = createCanvas(db, 'C')
-    saveDoc(db, id, [seg({ id: 's1', origin: 'ai', text: 'ai text' })])
-    updateSegment(db, id, 's1', 'my edit')
-    const s = getCanvas(db, id)!.doc[0]
-    expect(s.origin).toBe('user')
-    expect(s.text).toBe('my edit')
+    const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'hi' }] }] }
+    saveDoc(db, id, doc)
+    expect(getCanvas(db, id)!.doc).toEqual(doc)
     db.close()
   })
 })

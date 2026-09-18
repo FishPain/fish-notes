@@ -38,4 +38,24 @@ describe('server', () => {
     expect(results[0].capture.content).toContain('sourdough')
     server.close()
   })
+
+  it('a failing async handler yields 500, not a hang', async () => {
+    const db = openDb(':memory:')
+    const app = buildServer(
+      db,
+      async () => {
+        throw new Error('boom')
+      },
+      TOKEN
+    )
+    const server = app.listen(0)
+    const { port } = server.address() as { port: number }
+    const res = await fetch(`http://localhost:${port}/ask`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${TOKEN}` },
+      body: JSON.stringify({ question: 'anything' })
+    })
+    expect(res.status).toBe(500)
+    server.close()
+  })
 })

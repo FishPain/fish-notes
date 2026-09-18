@@ -49,10 +49,17 @@ export const hybridSearch = async (
   limit: number
 ): Promise<SearchResult[]> => {
   const [kw, sem] = await Promise.all([Promise.resolve(keywordSearch(db, query, limit)), semanticSearch(db, query, limit)])
-  const best = new Map<number, SearchResult>()
-  for (const r of [...kw, ...sem]) {
-    const existing = best.get(r.capture.id)
-    if (!existing || r.score > existing.score) best.set(r.capture.id, r)
+  // ponytail: Reciprocal Rank Fusion (k=60) merges the two lists by rank, not raw
+  // score, so unbounded bm25 can't drown the [0,1] semantic scores.
+  const RRF_K = 60
+  const fused = new Map<number, SearchResult>()
+  for (const list of [kw, sem]) {
+    list.forEach((r, rank) => {
+      const contribution = 1 / (RRF_K + rank)
+      const existing = fused.get(r.capture.id)
+      if (existing) existing.score += contribution
+      else fused.set(r.capture.id, { capture: r.capture, score: contribution })
+    })
   }
-  return [...best.values()].sort((a, b) => b.score - a.score).slice(0, limit)
+  return [...fused.values()].sort((a, b) => b.score - a.score).slice(0, limit)
 }

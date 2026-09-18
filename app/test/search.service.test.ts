@@ -34,4 +34,15 @@ describe('search.service', () => {
     expect(r.length).toBeGreaterThan(0)
     db.close()
   })
+
+  it('hybrid ranks a capture found by both keyword and semantic first', async () => {
+    const db = await seed()
+    const kw = keywordSearch(db, 'React', 10)
+    const sem = await semanticSearch(db, 'React', 10)
+    const shared = kw.map((x) => x.capture.id).filter((id) => sem.some((s) => s.capture.id === id))
+    expect(shared.length).toBeGreaterThan(0)
+    const r = await hybridSearch(db, 'React', 10)
+    expect(shared).toContain(r[0].capture.id)
+    db.close()
+  })
 })

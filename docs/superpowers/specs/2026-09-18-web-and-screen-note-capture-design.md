@@ -22,7 +22,7 @@ line inside a long document. I want to:
   searchable place, with a best-effort "jump to source" link. We do **not**
   re-render highlights live on the original page. (Lazier; robust to source
   changes.)
-- **Capture is decoupled from the app.** The app is an **engine** exposing a
+- **Capture is decoupled from the app.** While the app is running it exposes a
   local HTTP endpoint; any number of capturers POST the same note schema to it.
 - **Two capturers ship** (browser first, then macOS):
   - **Browser extension** — the priority, since web is the main source.
@@ -31,13 +31,22 @@ line inside a long document. I want to:
   has room for `filePath`/`line` when we add it).
 - **AI is hybrid:** embeddings + search always run **locally**; question
   answering can use **local (Ollama)** or **cloud (user API key)** per query.
-- **The engine is a single local service, always-on via a macOS LaunchAgent.**
-  The goal was "make sure it's always booted up" — `launchd` with `KeepAlive`
-  auto-starts it at login and relaunches it if it dies. No Docker Desktop
-  dependency; ships as one distributable. (Docker was considered but is heavier
-  than needed for a personal single-machine tool.)
-- **UI is a web page served by the engine** (no Electron needed for MVP).
-  A native Swift app / Electron shell can come later; both are just clients.
+- **The app is a normal Electron app you open — not a background service.**
+  No always-on/launchd. When it's closed, the browser extension **queues
+  captures locally and flushes them when you next open the app** (a just-clipped
+  note isn't searchable until then — acceptable for a personal tool). Docker and
+  an always-on launchd service were both considered and rejected as heavier than
+  needed.
+- **Stack: Electron, chosen for functionality.** The app bundles a Node
+  **engine** (SQLite DB, local embeddings, search, LLM orchestration, and a
+  capture listener while running) plus the **web UI**, in one app. Rationale:
+  the high-value AI functionality (local embeddings, vector search, hybrid
+  search, Q&A) has mature drop-in JS libraries (`transformers.js`, `sqlite-vec`)
+  — far more functionality per unit effort than hand-rolling on Swift/CoreML.
+- **Phase 2 native capture tool is a small separate helper**, not a rewrite: it
+  POSTs to the same local endpoint. (A native SwiftUI app was considered; it
+  wins only on "native feel"/WidgetKit, which is deprioritized in favor of
+  functionality.)
 
 ## Architecture
 
@@ -51,19 +60,15 @@ line inside a long document. I want to:
         └──────────────┬───────────────────┘
                        ▼
         ┌──────────────────────────────────────┐
-        │  ENGINE  (local service, launchd)     │
-        │  - HTTP API: /capture /search /ask    │
+        │  ELECTRON APP  (opened by user)       │
+        │  Node engine:                         │
+        │  - HTTP capture listener (while open) │
         │  - SQLite: notes, FTS5, vec           │
         │  - local embedding model              │
         │  - optional local LLM (Ollama)        │
-        │  - serves the web UI                  │
-        │  - always-on via LaunchAgent+KeepAlive│
+        │  Web UI (in the app window):          │
+        │  - browse / search / ask / edit       │
         └──────────────────────────────────────┘
-                       ▲
-                       │ browser opens local UI
-                 ┌─────┴─────┐
-                 │  Web UI    │  browse / search / ask / edit
-                 └───────────┘
 ```
 
 ### Unified note schema
@@ -93,9 +98,12 @@ left empty.
 
 ## Components
 
-### 1. Engine (local service, launchd) — Phase 1
+### 1. Electron app — engine + UI — Phase 1
 
-- **HTTP API** (single small service):
+The Node engine runs inside the Electron main process; the UI is the renderer.
+The HTTP capture listener is active only while the app is open.
+
+- **HTTP API** (local, active while app is open):
   - `POST /capture` — validate, store, embed. Requires shared token.
   - `GET  /search?q=&mode=normal|semantic|hybrid&filters…`
   - `POST /ask` — retrieve top-k notes, answer via local or cloud LLM, return
@@ -104,7 +112,6 @@ left empty.
   - `GET  /notes/:id/related` — top-k semantically similar notes.
   - `POST/DELETE /notes/:id/links` — manage manual links (backlinks).
   - `GET  /export?format=markdown|json` — export all notes.
-  - serves the static web UI.
 - **Storage** (SQLite file in `~/Library/Application Support/`, survives restarts):
   - `notes` — schema fields (incl. `tags`) + `id`.
   - `notes_fts` (FTS5) — keyword search.
@@ -130,11 +137,11 @@ left empty.
   **Enter** saves, **Esc** saves without a note (pure clip). Never blocks the
   page; a toast confirms. (Comment is always optional — clip now, annotate
   later in the app.)
-- POSTs to the engine with the shared token.
-- **Offline/engine-down:** queue in `chrome.storage` and retry, so a capture is
-  never lost.
+- POSTs to the app with the shared token.
+- **App closed / unreachable:** queue in `chrome.storage` and flush when the app
+  is next open, so a capture is never lost.
 
-### 3. Web UI (served by engine) — Phase 1
+### 3. UI (Electron renderer) — Phase 1
 
 - List/browse notes (newest first), filter by date / source type / domain / tag.
 - Normal + semantic + hybrid search box.
@@ -200,8 +207,8 @@ insert into `notes`, update `notes_fts`, compute + store embedding in
 
 ## Error Handling / Sharp Edges
 
-- **Engine down at capture:** capturer queues locally and retries. No lost
-  captures.
+- **App closed at capture:** capturer queues locally and flushes on next app
+  open. No lost captures.
 - **Localhost trust boundary:** `/capture` requires a shared token set at
   install, so stray web pages / local processes can't inject notes. (Security —
   not skipped.)
@@ -221,13 +228,13 @@ insert into `notes`, update `notes_fts`, compute + store embedding in
 
 ## Phasing (build order)
 
-1. **Phase 1 (first implementation plan):** engine service (API + SQLite +
-   FTS5 + sqlite-vec + local embeddings) + web UI + browser extension +
-   hybrid search + ask (local + cloud). This is a complete, daily-usable tool.
+1. **Phase 1 (first implementation plan):** Electron app (Node engine — API +
+   SQLite + FTS5 + sqlite-vec + local embeddings — plus the web UI) + browser
+   extension + hybrid search + ask (local + cloud). A complete, daily-usable tool.
 2. **Phase 2:** native macOS box app (AX + screenshot/OCR) feeding the same
    endpoint.
 3. **Later (deferred):** code/editor capture (`filePath`/`line`); cloud sync;
-   native/Electron shell.
+   WidgetKit widget / native shell.
 
 ## Out of Scope (for now)
 

@@ -15,6 +15,7 @@ export const makeApiClient = (cfg: EngineConfig, fetchImpl: typeof fetch = fetch
       }
     })
     if (!res.ok) throw new Error(`engine ${res.status}`)
+    if (res.status === 204) return undefined as T // e.g. DELETE
     return res.json() as Promise<T>
   }
   return { request }

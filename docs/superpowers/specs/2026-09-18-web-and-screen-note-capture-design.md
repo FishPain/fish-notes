@@ -32,17 +32,17 @@ line inside a long document. I want to:
   has room for `filePath`/`line` when we add it).
 - **AI is hybrid:** embeddings + search always run **locally**; question
   answering can use **local (Ollama)** or **cloud (user API key)** per query.
-- **LLM access uses the official `openai` Node SDK with a configurable
-  `baseURL` + model.** Ollama exposes an OpenAI-compatible endpoint
-  (`http://localhost:11434/v1`) and cloud providers are OpenAI-compatible too, so
-  Ollama ↔ cloud is a **config/model-name change, zero code change** — no Python,
-  no sidecar, one dependency. (litellm was considered but is Python; a Node-only
-  path is simpler. Vercel AI SDK / token.js are fallbacks if broader provider
-  features are ever needed.)
+- **LLM access uses the Vercel AI SDK (`ai`).** Cloud = Claude via
+  `@ai-sdk/anthropic` (model id is config, e.g. `claude-sonnet-5`); local =
+  Ollama community provider. Calling code is identical across providers
+  (`generateText`/`streamText`), so **switching is a config choice, zero code
+  change**. Node-native, no Python, no sidecar. (litellm was rejected as Python;
+  the plain `openai` SDK + baseURL trick was rejected because Claude is the main
+  cloud model and its native format differs from OpenAI's — only a caveated
+  compat shim, not worth building on.)
 - **Embeddings stay local and in-process** (`transformers.js`), separate from the
   LLM path, so core search works offline with no external deps (no Ollama
-  required just to search). The `openai` SDK path is used only for the "ask"
-  feature.
+  required just to search). The AI SDK path is used only for the "ask" feature.
 - **Phase 2 (screen capture) is pure Electron — no native Swift.** The macOS
   Accessibility API is reliable only on native Cocoa apps (Chromium/Electron
   apps and many cross-platform toolkits expose little/no usable text), so AX is
@@ -87,10 +87,11 @@ line inside a long document. I want to:
         │  Web UI (in the app window):          │
         │  - browse / search / ask / edit       │
         └───────────────┬──────────────────────┘
-                        │ `openai` SDK, configurable baseURL (ask only)
+                        │ Vercel AI SDK, provider by config (ask only)
                         ▼
               ┌───────────────────────────────┐
-              │ Ollama /v1 (local) or cloud    │  (OpenAI-compatible)
+              │ Claude (@ai-sdk/anthropic)     │
+              │  or Ollama (local)             │
               └───────────────────────────────┘
 ```
 
@@ -143,10 +144,9 @@ The HTTP capture listener is active only while the app is open.
 - **Embeddings:** local small model (e.g. `all-MiniLM-L6-v2`) in-process via
   `transformers.js`. Nothing leaves the machine for indexing/search; no external
   service required.
-- **LLM for /ask:** the official **`openai` Node SDK** with a configurable
-  `baseURL` + model. Local = Ollama's OpenAI-compatible endpoint; cloud = any
-  OpenAI-compatible provider. Switch by config/model name — no code change. API
-  keys stored locally.
+- **LLM for /ask:** the **Vercel AI SDK (`ai`)** with `@ai-sdk/anthropic`
+  (Claude) and an Ollama provider. Provider + model id are config; calling code
+  is identical, so switching is config-only. API keys stored locally.
 
 ### 2. Browser extension — Phase 1
 
@@ -202,8 +202,8 @@ insert into `notes`, update `notes_fts`, compute + store embedding in
 - **Semantic:** embed query → sqlite-vec top-k → merge with keyword hits (hybrid
   by default).
 - **Ask:** retrieve top-k relevant notes → send *only those* to the answerer
-  via the `openai` SDK (baseURL points at local Ollama or cloud by config) →
-  return answer + links to the source notes.
+  via the Vercel AI SDK (Claude or local Ollama, by config) → return answer +
+  links to the source notes.
 
 ## Jump to Source
 

@@ -1,6 +1,8 @@
 import Database from 'better-sqlite3'
 import { DateTime } from 'luxon'
-import { Canvas, Segment } from './types.js'
+import { Canvas } from './types.js'
+
+const EMPTY_DOC = { type: 'doc', content: [] }
 
 interface CanvasRow {
   id: number
@@ -20,15 +22,10 @@ const rowToCanvas = (row: CanvasRow): Canvas => ({
   collatedAt: row.collatedAt
 })
 
-// Records that a canvas was just collated (drives the "N new sources since" nudge).
-export const markCollated = (db: Database.Database, id: number): void => {
-  db.prepare('UPDATE canvases SET collatedAt = ? WHERE id = ?').run(DateTime.now().toISO(), id)
-}
-
 export const createCanvas = (db: Database.Database, title: string, description = ''): number => {
   const info = db
     .prepare('INSERT INTO canvases (title, description, doc, updatedAt) VALUES (?, ?, ?, ?)')
-    .run(title, description, '[]', DateTime.now().toISO())
+    .run(title, description, JSON.stringify(EMPTY_DOC), DateTime.now().toISO())
   return Number(info.lastInsertRowid)
 }
 
@@ -40,7 +37,8 @@ export const getCanvas = (db: Database.Database, id: number): Canvas | null => {
 export const listCanvases = (db: Database.Database): Canvas[] =>
   (db.prepare('SELECT * FROM canvases ORDER BY updatedAt DESC').all() as CanvasRow[]).map(rowToCanvas)
 
-export const saveDoc = (db: Database.Database, id: number, doc: Segment[]): void => {
+// The whole note doc is opaque JSON owned by the editor; we just persist it.
+export const saveDoc = (db: Database.Database, id: number, doc: unknown): void => {
   db.prepare('UPDATE canvases SET doc = ?, updatedAt = ? WHERE id = ?').run(
     JSON.stringify(doc),
     DateTime.now().toISO(),
@@ -48,12 +46,6 @@ export const saveDoc = (db: Database.Database, id: number, doc: Segment[]): void
   )
 }
 
-// Editing a segment locks it as the user's ground truth so refresh won't touch it.
-export const updateSegment = (db: Database.Database, id: number, segmentId: string, text: string): void => {
-  const canvas = getCanvas(db, id)
-  if (!canvas) return
-  const doc = canvas.doc.map((s) =>
-    s.id === segmentId ? { ...s, text, origin: 'user' as const } : s
-  )
-  saveDoc(db, id, doc)
+export const markCollated = (db: Database.Database, id: number): void => {
+  db.prepare('UPDATE canvases SET collatedAt = ? WHERE id = ?').run(DateTime.now().toISO(), id)
 }

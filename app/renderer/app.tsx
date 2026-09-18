@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Box, TextField, Typography, Card, CardContent, Button, Stack, Chip, IconButton } from '@mui/material'
+import { Box, TextField, Typography, Card, CardContent, Button, Stack, Chip, IconButton, CircularProgress } from '@mui/material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faTrash } from '@fortawesome/free-solid-svg-icons'
@@ -97,29 +97,46 @@ const SearchView = (): React.ReactElement => {
     ? (results.data || []).map((h) => h.capture)
     : all.data || []
 
-  const ask = async (): Promise<void> => {
-    const r = await api.request<AskResult>('/ask', {
-      method: 'POST',
-      body: JSON.stringify({ question: query })
-    })
-    setAsked(r)
+  const askMut = useMutation({
+    mutationFn: () =>
+      api.request<AskResult>('/ask', { method: 'POST', body: JSON.stringify({ question: query }) }),
+    onSuccess: (r) => setAsked(r)
+  })
+  const ask = (): void => {
+    if (searching && !askMut.isPending) askMut.mutate()
   }
 
   return (
     <Box sx={{ flex: 1, overflow: 'auto', maxWidth: 900, mx: 'auto', p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 2 }}>Canvas Notes</Typography>
+      <Typography variant="h4" sx={{ mb: 2 }}>Notes</Typography>
       <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
         <TextField
           fullWidth
           placeholder="Search your sources or ask a question…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') ask()
+          }}
         />
-        <Button variant="contained" onClick={ask} disabled={!searching}>Ask</Button>
+        <Button variant="contained" onClick={ask} disabled={!searching || askMut.isPending} sx={{ minWidth: 88 }}>
+          {askMut.isPending ? <CircularProgress size={20} color="inherit" /> : 'Ask'}
+        </Button>
       </Stack>
 
-      {asked && (
-        <Card sx={{ mb: 2, bgcolor: 'rgba(120,140,255,.08)' }}>
+      {askMut.isPending && (
+        <Card sx={{ mb: 2, bgcolor: 'rgba(201,138,58,.08)' }}>
+          <CardContent>
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <CircularProgress size={18} />
+              <Typography variant="body2" sx={{ opacity: 0.7 }}>Thinking…</Typography>
+            </Stack>
+          </CardContent>
+        </Card>
+      )}
+
+      {asked && !askMut.isPending && (
+        <Card sx={{ mb: 2, bgcolor: 'rgba(201,138,58,.08)' }}>
           <CardContent>
             <Typography variant="subtitle2" sx={{ opacity: 0.7 }}>Answer</Typography>
             <Typography sx={{ whiteSpace: 'pre-wrap' }}>{asked.answer}</Typography>

@@ -1,7 +1,7 @@
 import { Application, Router } from 'express'
 import Database from 'better-sqlite3'
 import { GenerateFn } from './ask.service.js'
-import { GenerateSegmentsFn } from './collate.service.js'
+import { GenerateMarkdownFn } from './markdown-generator.js'
 import { requireToken } from './middleware/require-token.js'
 import { captureController } from './routes/capture/capture.controller.js'
 import { searchController } from './routes/search/search.controller.js'
@@ -13,13 +13,13 @@ export const routes = (
   db: Database.Database,
   generate: GenerateFn,
   token: string,
-  generateSegments: GenerateSegmentsFn
+  generateMarkdown: GenerateMarkdownFn
 ): void => {
   const api = Router()
   api.use(requireToken(token))
   api.use('/capture', captureController(db))
   api.use('/search', searchController(db))
   api.use('/ask', askController(db, generate))
-  api.use('/canvas', canvasController(db, generateSegments))
+  api.use('/canvas', canvasController(db, generateMarkdown))
   app.use('/', api)
 }

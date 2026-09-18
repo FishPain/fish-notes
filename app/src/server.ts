@@ -1,7 +1,7 @@
 import express, { Application, Request, Response, NextFunction } from 'express'
 import Database from 'better-sqlite3'
 import { GenerateFn } from './ask.service.js'
-import { GenerateSegmentsFn } from './collate.service.js'
+import { GenerateMarkdownFn } from './markdown-generator.js'
 import { errorHandler } from './utils/http-errors.js'
 import { routes } from './routes.js'
 
@@ -20,13 +20,13 @@ export const buildServer = (
   db: Database.Database,
   generate: GenerateFn,
   token: string,
-  generateSegments: GenerateSegmentsFn
+  generateMarkdown: GenerateMarkdownFn
 ): Application => {
   const app = express()
   app.use(cors)
   app.options('*', (_req, res) => res.sendStatus(204))
   app.use(express.json({ limit: '25mb' }))
-  routes(app, db, generate, token, generateSegments)
+  routes(app, db, generate, token, generateMarkdown)
   app.use(errorHandler)
   return app
 }

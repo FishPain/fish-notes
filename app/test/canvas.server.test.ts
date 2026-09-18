@@ -5,30 +5,26 @@ import { buildServer } from '../src/server.js'
 const TOKEN = 'test-token'
 const makeServer = () => {
   const db = openDb(':memory:')
-  const app = buildServer(db, async () => 'stub', TOKEN, async () => [{ heading: 'H', text: 'T', citations: [] }])
+  const app = buildServer(db, async () => 'stub', TOKEN, async () => '## Draft\ntext [r](https://e.com)')
   return app.listen(0)
 }
 
 describe('canvas routes', () => {
-  it('creates a canvas, lists it, collates it', async () => {
+  it('creates, saves doc, drafts (markdown), completes (markdown)', async () => {
     const server = makeServer()
     const { port } = server.address() as { port: number }
     const base = `http://localhost:${port}`
     const headers = { 'content-type': 'application/json', authorization: `Bearer ${TOKEN}` }
 
-    const created = await (
-      await fetch(`${base}/canvas`, { method: 'POST', headers, body: JSON.stringify({ title: 'New Agent' }) })
-    ).json()
-    expect(created.id).toBeGreaterThan(0)
+    const created = await (await fetch(`${base}/canvas`, { method: 'POST', headers, body: JSON.stringify({ title: 'A' }) })).json()
+    const doc = { type: 'doc', content: [] }
+    expect((await fetch(`${base}/canvas/${created.id}`, { method: 'PATCH', headers, body: JSON.stringify({ doc }) })).status).toBe(200)
 
-    const list = (await (await fetch(`${base}/canvas`, { headers })).json()) as { title: string }[]
-    expect(list[0].title).toBe('New Agent')
+    const draft = await (await fetch(`${base}/canvas/${created.id}/draft`, { method: 'POST', headers })).json()
+    expect(draft.markdown).toContain('## Draft')
 
-    const collated = (await (
-      await fetch(`${base}/canvas/${created.id}/collate`, { method: 'POST', headers })
-    ).json()) as { doc: { heading: string; origin: string }[] }
-    expect(collated.doc[0].heading).toBe('H')
-    expect(collated.doc[0].origin).toBe('ai')
+    const done = await (await fetch(`${base}/canvas/${created.id}/complete`, { method: 'POST', headers, body: JSON.stringify({ prompt: 'x', doc: 'ctx' }) })).json()
+    expect(done.markdown).toContain('## Draft')
 
     server.close()
   })
@@ -36,8 +32,7 @@ describe('canvas routes', () => {
   it('returns 404 for a missing canvas', async () => {
     const server = makeServer()
     const { port } = server.address() as { port: number }
-    const headers = { authorization: `Bearer ${TOKEN}` }
-    const res = await fetch(`http://localhost:${port}/canvas/9999`, { headers })
+    const res = await fetch(`http://localhost:${port}/canvas/9999`, { headers: { authorization: `Bearer ${TOKEN}` } })
     expect(res.status).toBe(404)
     server.close()
   })

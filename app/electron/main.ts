@@ -3,7 +3,7 @@ import { join } from 'path'
 import { openDb } from '../src/db.js'
 import { buildServer } from '../src/server.js'
 import { makeGenerate } from '../src/generator.js'
-import { makeSegmentGenerator } from '../src/collate-generator.js'
+import { makeMarkdownGenerator } from '../src/markdown-generator.js'
 import { AI } from '../src/constants.js'
 import { loadOrCreateToken } from './engine-token.js'
 
@@ -12,7 +12,7 @@ const PORT = 7645
 const startEngine = (token: string): void => {
   const dbPath = join(app.getPath('userData'), 'canvas.db')
   const db = openDb(dbPath)
-  const server = buildServer(db, makeGenerate(AI), token, makeSegmentGenerator(AI))
+  const server = buildServer(db, makeGenerate(AI), token, makeMarkdownGenerator(AI))
   server.listen(PORT, '127.0.0.1', () => console.log(`engine on http://127.0.0.1:${PORT}`))
 }
 

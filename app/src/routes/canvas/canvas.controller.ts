@@ -3,13 +3,14 @@ import { object, string } from 'yup'
 import Database from 'better-sqlite3'
 import { httpErrors, Reason, throwHttpError } from '../../utils/http-errors.js'
 import { asyncHandler } from '../../utils/async-handler.js'
-import { createCanvas, listCanvases, getCanvas, updateSegment } from '../../canvas.service.js'
+import { createCanvas, listCanvases, getCanvas, saveDoc } from '../../canvas.service.js'
 import { countCapturesSince } from '../../capture.service.js'
-import { collate, GenerateSegmentsFn } from '../../collate.service.js'
+import { draftFromSources, completeInline } from '../../draft.service.js'
+import { GenerateMarkdownFn } from '../../markdown-generator.js'
 
 const CreateSchema = object({ title: string().trim().required(), description: string().trim() })
 
-export const canvasController = (db: Database.Database, generateSegments: GenerateSegmentsFn): Router => {
+export const canvasController = (db: Database.Database, generate: GenerateMarkdownFn): Router => {
   const router = Router()
 
   router.post(
@@ -37,26 +38,37 @@ export const canvasController = (db: Database.Database, generateSegments: Genera
     res.json({ ...canvas, newSourceCount: countCapturesSince(db, canvas.collatedAt) })
   })
 
-  router.patch('/:id/segments/:segmentId', (req, res) => {
-    const id = Number(req.params.id)
-    if (!getCanvas(db, id)) {
+  router.patch('/:id', (req, res) => {
+    if (!getCanvas(db, Number(req.params.id))) {
       throwHttpError(httpErrors.notFound, Reason.NotFound, res)
       return
     }
-    updateSegment(db, id, req.params.segmentId, String(req.body.text ?? ''))
-    res.json(getCanvas(db, id))
+    saveDoc(db, Number(req.params.id), req.body.doc)
+    res.status(200).json({ ok: true })
   })
 
   router.post(
-    '/:id/collate',
+    '/:id/draft',
     asyncHandler(async (req, res) => {
-      const id = Number(req.params.id)
-      if (!getCanvas(db, id)) {
+      if (!getCanvas(db, Number(req.params.id))) {
         throwHttpError(httpErrors.notFound, Reason.NotFound, res)
         return
       }
-      const doc = await collate(db, id, generateSegments)
-      res.json({ doc })
+      const markdown = await draftFromSources(db, Number(req.params.id), generate)
+      res.json({ markdown })
+    })
+  )
+
+  router.post(
+    '/:id/complete',
+    asyncHandler(async (req, res) => {
+      if (!getCanvas(db, Number(req.params.id))) {
+        throwHttpError(httpErrors.notFound, Reason.NotFound, res)
+        return
+      }
+      const { prompt = '', doc = '' } = req.body as { prompt?: string; doc?: string }
+      const markdown = await completeInline(db, Number(req.params.id), prompt, doc, generate)
+      res.json({ markdown })
     })
   )
 

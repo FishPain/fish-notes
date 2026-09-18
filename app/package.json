@@ -8,10 +8,10 @@
     "node": ">=20 <25"
   },
   "scripts": {
-    "test": "vitest run",
+    "test": "npm run rebuild:node && vitest run",
     "typecheck": "tsc --noEmit",
-    "start": "tsx src/index.ts",
-    "dev": "electron-vite dev",
+    "start": "npm run rebuild:node && tsx src/index.ts",
+    "dev": "npm run rebuild:electron && electron-vite dev",
     "build:app": "electron-vite build",
     "rebuild:electron": "electron-rebuild -f -w better-sqlite3",
     "rebuild:node": "npm rebuild better-sqlite3"

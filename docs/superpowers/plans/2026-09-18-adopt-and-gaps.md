@@ -452,6 +452,24 @@ git commit -m "feat: MV3 box-draw capturer wired to Joplin"
 
 ---
 
+## Distribution (open-source GitHub project)
+
+- **License: MIT** (`LICENSE` at repo root). mynotes ships only the glue
+  (capturer + OCR + docs); it talks to Khoj (AGPL) as a **separate process over
+  HTTP** and never bundles its code, so the repo stays MIT. Joplin/Jarvis are
+  MIT-compatible.
+- **`README.md`** doubles as the user setup guide (Phase 1 runbook) + architecture
+  + acknowledgements + license.
+- **`.gitignore`** excludes `node_modules/`, `dist/`, `*.db`, `.env`.
+- **Publish:** create the GitHub repo and push:
+  ```bash
+  gh repo create mynotes --public --source . --remote origin --push
+  ```
+  (Run when you're ready; requires `gh auth login`.)
+- **Later repo hygiene (optional):** `CONTRIBUTING.md`, a CI workflow running
+  `npm test` + `npm run typecheck` in `capturer/`, and tagged releases of the
+  packed extension.
+
 ## Notes
 
 - Phase 1 alone may be the whole product. Do not build Phase 2 speculatively — only when a specific gap (Task 4) actually bites.

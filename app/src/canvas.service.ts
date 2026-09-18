@@ -5,6 +5,7 @@ import { Canvas, Segment } from './types.js'
 interface CanvasRow {
   id: number
   title: string
+  description: string
   doc: string
   updatedAt: string
 }
@@ -12,14 +13,15 @@ interface CanvasRow {
 const rowToCanvas = (row: CanvasRow): Canvas => ({
   id: row.id,
   title: row.title,
+  description: row.description,
   doc: JSON.parse(row.doc),
   updatedAt: row.updatedAt
 })
 
-export const createCanvas = (db: Database.Database, title: string): number => {
+export const createCanvas = (db: Database.Database, title: string, description = ''): number => {
   const info = db
-    .prepare('INSERT INTO canvases (title, doc, updatedAt) VALUES (?, ?, ?)')
-    .run(title, '[]', DateTime.now().toISO())
+    .prepare('INSERT INTO canvases (title, description, doc, updatedAt) VALUES (?, ?, ?, ?)')
+    .run(title, description, '[]', DateTime.now().toISO())
   return Number(info.lastInsertRowid)
 }
 

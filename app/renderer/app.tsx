@@ -3,6 +3,8 @@ import { Box, TextField, Typography, Card, CardContent, Button, Stack, Chip } fr
 import { useQuery } from '@tanstack/react-query'
 import { useUi } from './store.js'
 import { api } from './main.js'
+import { CanvasList } from './canvas-list.js'
+import { CanvasView } from './canvas-view.js'
 
 interface Capture {
   id: number
@@ -44,16 +46,18 @@ const CaptureCard = ({ capture }: { capture: Capture }): React.ReactElement => (
   </Card>
 )
 
-export const App = (): React.ReactElement => {
+const SearchView = (): React.ReactElement => {
   const { query, setQuery, mode } = useUi()
   const [asked, setAsked] = useState<AskResult | null>(null)
   const searching = query.trim().length > 0
 
   // Default view: all captures, newest first. Search view: hybrid results.
+  // Poll so captures sent from the browser extension show up without a manual refresh.
   const all = useQuery({
     queryKey: ['captures'],
     queryFn: () => api.request<Capture[]>('/capture'),
-    enabled: !searching
+    enabled: !searching,
+    refetchInterval: 4000
   })
   const results = useQuery({
     queryKey: ['search', query, mode],
@@ -74,7 +78,7 @@ export const App = (): React.ReactElement => {
   }
 
   return (
-    <Box sx={{ maxWidth: 900, mx: 'auto', p: 3 }}>
+    <Box sx={{ flex: 1, overflow: 'auto', maxWidth: 900, mx: 'auto', p: 3 }}>
       <Typography variant="h5" sx={{ mb: 2 }}>Canvas Notes</Typography>
       <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
         <TextField
@@ -117,6 +121,20 @@ export const App = (): React.ReactElement => {
       <Typography variant="caption" sx={{ display: 'block', mt: 3, opacity: 0.5 }}>
         Extension token: {window.engine.token} · endpoint {window.engine.baseUrl}
       </Typography>
+    </Box>
+  )
+}
+
+export const App = (): React.ReactElement => {
+  const { view, selectedCanvasId } = useUi()
+  return (
+    <Box sx={{ display: 'flex', height: '100vh' }}>
+      <CanvasList />
+      {view === 'canvas' && selectedCanvasId !== null ? (
+        <CanvasView canvasId={selectedCanvasId} />
+      ) : (
+        <SearchView />
+      )}
     </Box>
   )
 }

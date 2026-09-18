@@ -6,7 +6,7 @@ import { asyncHandler } from '../../utils/async-handler.js'
 import { createCanvas, listCanvases, getCanvas, updateSegment } from '../../canvas.service.js'
 import { collate, GenerateSegmentsFn } from '../../collate.service.js'
 
-const TitleSchema = object({ title: string().trim().required() })
+const CreateSchema = object({ title: string().trim().required(), description: string().trim() })
 
 export const canvasController = (db: Database.Database, generateSegments: GenerateSegmentsFn): Router => {
   const router = Router()
@@ -16,12 +16,12 @@ export const canvasController = (db: Database.Database, generateSegments: Genera
     asyncHandler(async (req, res) => {
       let body
       try {
-        body = await TitleSchema.validate(req.body, { abortEarly: true, stripUnknown: true })
+        body = await CreateSchema.validate(req.body, { abortEarly: true, stripUnknown: true })
       } catch {
         throwHttpError(httpErrors.badRequest, Reason.MissingOrInvalidFields, res)
         return
       }
-      res.status(201).json({ id: createCanvas(db, body.title) })
+      res.status(201).json({ id: createCanvas(db, body.title, body.description ?? '') })
     })
   )
 

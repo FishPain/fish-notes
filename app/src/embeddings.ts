@@ -1,16 +1,14 @@
-import { pipeline, FeatureExtractionPipeline } from '@xenova/transformers'
+import { EMBEDDING } from './constants.js'
 
-let extractorPromise: Promise<FeatureExtractionPipeline> | null = null
-
-const getExtractor = (): Promise<FeatureExtractionPipeline> => {
-  if (!extractorPromise) {
-    extractorPromise = pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2')
-  }
-  return extractorPromise
-}
-
+// Embed text via the OpenAI-compatible proxy (no local model). Returns the raw
+// embedding vector (EMBEDDING.dim floats).
 export const embed = async (text: string): Promise<number[]> => {
-  const extractor = await getExtractor()
-  const output = await extractor(text, { pooling: 'mean', normalize: true })
-  return Array.from(output.data as Float32Array)
+  const res = await fetch(`${EMBEDDING.baseUrl}/embeddings`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${EMBEDDING.apiKey}` },
+    body: JSON.stringify({ model: EMBEDDING.model, input: text })
+  })
+  if (!res.ok) throw new Error(`embeddings ${res.status}`)
+  const data = (await res.json()) as { data: { embedding: number[] }[] }
+  return data.data[0].embedding
 }

@@ -1,7 +1,8 @@
 import Database from 'better-sqlite3'
 import * as sqliteVec from 'sqlite-vec'
+import { EMBEDDING } from './constants.js'
 
-const EMBED_DIM = 384
+const EMBED_DIM = EMBEDDING.dim
 
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS captures (
@@ -17,15 +18,24 @@ const SCHEMA = [
   `CREATE VIRTUAL TABLE IF NOT EXISTS captures_fts USING fts5(capture_id UNINDEXED, text)`,
   `CREATE VIRTUAL TABLE IF NOT EXISTS vec_captures USING vec0(capture_id INTEGER PRIMARY KEY, embedding FLOAT[${EMBED_DIM}])`,
   `CREATE TABLE IF NOT EXISTS canvases (
-     id        INTEGER PRIMARY KEY AUTOINCREMENT,
-     title     TEXT NOT NULL,
-     doc       TEXT NOT NULL DEFAULT '[]',
-     updatedAt TEXT NOT NULL
+     id          INTEGER PRIMARY KEY AUTOINCREMENT,
+     title       TEXT NOT NULL,
+     description TEXT NOT NULL DEFAULT '',
+     doc         TEXT NOT NULL DEFAULT '[]',
+     updatedAt   TEXT NOT NULL
    )`
 ]
 
+// Add a column to an existing table if it's missing (SQLite has no
+// ADD COLUMN IF NOT EXISTS), so schema additions don't require wiping the DB.
+const ensureColumn = (db: Database.Database, table: string, column: string, ddl: string): void => {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]
+  if (!cols.some((c) => c.name === column)) db.prepare(`ALTER TABLE ${table} ADD COLUMN ${ddl}`).run()
+}
+
 const migrate = (db: Database.Database): void => {
   for (const statement of SCHEMA) db.prepare(statement).run()
+  ensureColumn(db, 'canvases', 'description', "description TEXT NOT NULL DEFAULT ''")
 }
 
 export const openDb = (path: string): Database.Database => {

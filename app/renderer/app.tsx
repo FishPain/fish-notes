@@ -107,7 +107,7 @@ const SearchView = (): React.ReactElement => {
 
   return (
     <Box sx={{ flex: 1, overflow: 'auto', maxWidth: 900, mx: 'auto', p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 2 }}>Canvas Notes</Typography>
+      <Typography variant="h4" sx={{ mb: 2 }}>Notes</Typography>
       <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
         <TextField
           fullWidth

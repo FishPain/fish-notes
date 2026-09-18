@@ -44,7 +44,7 @@ export const CanvasList = (): React.ReactElement => {
 
   return (
     <Box sx={{ width: 250, bgcolor: 'background.paper', borderRight: 1, borderColor: 'divider', p: 1.5, height: '100vh', overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
-      <ListItemButton selected={view === 'search'} onClick={openSearch} sx={{ borderRadius: 2, mb: 1.5 }}>
+      <ListItemButton selected={view === 'search'} onClick={openSearch} sx={{ borderRadius: 2, mb: 1.5, flexGrow: 0 }}>
         <FontAwesomeIcon icon={faMagnifyingGlass} style={{ opacity: 0.7 }} />
         <ListItemText primary="Search" sx={{ ml: 1.5 }} />
       </ListItemButton>

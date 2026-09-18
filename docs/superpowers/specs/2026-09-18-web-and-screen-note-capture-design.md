@@ -1,129 +1,158 @@
-# Web & Screen Note Capture — Design
+# Canvas Notes — Design
 
 **Date:** 2026-09-18
-**Status:** Draft for review (revised to adopt-first architecture)
+**Status:** Draft for review (redesigned: search-first, canvas-based, RAG-grounded)
 
 ## Problem
 
-While reading web pages, documents, or code, I frequently want to note a thought
-tied to a *specific* sentence, line, or region — without altering the original
-source. Today those notes go into a general notes app where they lose their
-anchor to the source and become tedious to find later, especially for a single
-line inside a long document. I want to:
+While working — e.g. building a new agent and reading hundreds of internal docs
+across many components — I capture passages from web pages, documents, and code
+without altering the source. I don't want a wall of source cards; I want the
+**content** to be self-organized and searchable, with the tool actively
+**collating what I've saved into a working document per topic**, kept honest by
+**grounding every claim in my saved sources**. I then refine that document,
+search my sources, and ask questions answered only from what I've saved.
 
-1. Capture content + a note quickly, from anywhere, without touching the source.
-2. Store it with its **datetime** and **source location**.
-3. Browse it and find it later via **normal search** and **semantic/AI search**.
-4. Jump back to roughly where it came from.
+## Product model (validated via mockups)
 
-## Guiding principle (ponytail)
-
-Most of this already exists as mature open source. **Adopt, don't rebuild.**
-Phase 1 is pure adoption + configuration with **zero custom code**. We build the
-few genuine gaps only in Phase 2, and only if the adopted stack falls short.
-
-## Adopted components
-
-- **Joplin** (github.com/laurent22/joplin, MIT, Electron, local **SQLite**) — the
-  note store, desktop UI, tags, note links, full-text search, and import/export.
-  It ships a **browser Web Clipper** (selection / screenshot / full page + source
-  URL → local note) and a **Data API** on `http://localhost:41184` (token-guarded)
-  for programmatic note creation. This is our engine + UI + web capture + organize
-  + export — already built.
-- **AI search + ask layer — pick one at setup:**
-  - **Khoj** (github.com/khoj-ai/khoj, AGPL) — semantic search + chat over a
-    markdown folder, local (Ollama) or cloud (**Claude**, GPT, …), self-hosted.
-    Native Claude support; needs a Joplin→markdown-folder bridge to index.
-  - **Jarvis** (Joplin plugin, JS/TS) — semantic search + chat *inside* Joplin,
-    indexes notes directly (no bridge). Stays in the JS/TS ecosystem; confirm
-    Claude support at setup (else use an OpenAI-compatible gateway or Ollama).
-  - Default recommendation: **Khoj** for native Claude; **Jarvis** if you prefer
-    zero bridging and in-app.
-
-## Core decisions (settled during brainstorming)
-
-- **Viewing model:** view the captured passage + note together in one searchable
-  place with a best-effort "jump to source" link. No live highlight overlay.
-- **Capture is decoupled from storage:** capturers POST notes to Joplin's Data
-  API (`localhost:41184`, token). Same target for every capturer.
-- **AI is hybrid:** semantic search/embeddings local; question answering local
-  (Ollama) or cloud (Claude), a config choice in Khoj/Jarvis.
-- **No always-on service of our own:** Joplin is a normal desktop app you open;
-  its clipper service + Data API run while Joplin is open. Khoj runs when you
-  want AI search (self-hosted locally).
+- **Global corpus.** Every capture joins one searchable pool. Captures are never
+  filed into a single place; they ground any canvas that finds them relevant.
+- **Canvas = a topic/workspace I define** (e.g. "New Agent — internal systems").
+  Its body is a **living document**, not a list of sources.
+- **Living document, word-level (Google-Docs feel).** A continuous, editable
+  rich-text document the LLM drafts from relevant captures. Provenance is
+  **per span**: AI-written text updates on Refresh; **any span I edit becomes
+  "mine" and is locked** from future refreshes. Claims carry **inline citations**
+  back to the exact captures; selecting a span shows provenance + sources + a
+  "pin as mine" action.
+- **Search-first.** Search/ask sits on top of the UI and is the primary action.
+  **Ask is grounded** in the saved corpus and answers with citations.
+- **Self-organizing with human override.** Collation and citations are automatic;
+  I can edit/pin text, exclude a source, rename/merge canvases.
 
 ## Architecture
 
+A single **Electron + React desktop app**. After the redesign, whole-app adoption
+(Joplin/Khoj) no longer fits — the word-level living-document + provenance +
+citation-merge engine is the entire point and neither app provides it. We still
+avoid rebuilding solved sub-problems by **adopting mature libraries** (embeddings,
+vector store, editor, LLM SDK) rather than whole apps.
+
 ```
-   Browser  ── Joplin Web Clipper (Phase 1) ─┐
-                                             │  POST notes (token)
-   Browser  ── box-draw capturer (Phase 2) ──┤────────────────┐
-   Screen   ── screen-box OCR helper (Phase 2)┘                ▼
-                                          ┌───────────────────────────────┐
-                                          │ JOPLIN (desktop, local SQLite) │
-                                          │  Data API :41184 (token)       │
-                                          │  UI: browse/search/tags/links  │
-                                          │  export: md / jex              │
-                                          └───────────────┬────────────────┘
-                                                          │ notes (md folder or in-app)
-                                                          ▼
-                                          ┌───────────────────────────────┐
-                                          │ Khoj (or Jarvis plugin)        │
-                                          │  semantic search + ask          │
-                                          │  local Ollama / cloud Claude    │
-                                          └────────────────────────────────┘
+Browser / screen ──capture──▶ ┌───────────────────────────────────────────┐
+                              │ ELECTRON APP (React renderer + Node main)   │
+                              │                                             │
+                              │  Capture intake ─▶ Corpus (SQLite):         │
+                              │     captures + FTS5 + sqlite-vec embeddings │
+                              │                                             │
+                              │  Retrieval (hybrid: FTS + vector)           │
+                              │      │                                      │
+                              │      ├─▶ Search (top bar)                   │
+                              │      ├─▶ Ask (grounded answer + citations)  │
+                              │      └─▶ Canvas collation engine ───────┐   │
+                              │                                         ▼   │
+                              │  Canvas doc store (per canvas):             │
+                              │     rich-text + per-span provenance +       │
+                              │     citation ranges (locked vs AI)          │
+                              │                                             │
+                              │  LLM via Vercel AI SDK ─▶ Claude / Ollama   │
+                              │  Editor: TipTap/ProseMirror (custom marks)  │
+                              └─────────────────────────────────────────────┘
 ```
 
-## Phase 1 — adopt + configure (no custom code)
+## Components
 
-1. Install **Joplin desktop** + the **Web Clipper** browser extension; enable the
-   clipper service (Joplin → Options → Web Clipper) and note the API token.
-2. Use the clipper to capture selections/screenshots + source URL into local
-   notes. Organise with Joplin tags and note links. Search with Joplin's search.
-3. Stand up the **AI layer**:
-   - **Khoj:** self-host (Docker or pip), bridge Joplin notes to a markdown folder
-     (Joplin filesystem sync or periodic export), point Khoj at that folder,
-     configure Ollama and/or a Claude API key. Search/chat via Khoj's UI.
-   - **or Jarvis:** install the plugin in Joplin, configure provider (Claude via
-     compatible endpoint, or Ollama), let it index notes; search/chat in Joplin.
-4. Backup = Joplin's SQLite DB / export; export = Joplin md/jex. (Already covered.)
+### 1. Capture (browser extension, + later screen OCR)
+- Box-draw / text-select on a page → real DOM text + surrounding context + URL +
+  `#:~:text=` scroll-to anchor + optional screenshot → POST to the app's local
+  intake endpoint (token-guarded). Offline queue + flush.
+- Phase 2: screen-region OCR helper for non-web sources (overlay +
+  `desktopCapturer` + `tesseract.js`).
 
-This is a complete, daily-usable tool with nothing built.
+### 2. Corpus store + retrieval (Node main process)
+- **SQLite** as the source of truth: `captures` (content, contextText, note,
+  source{url,anchor,appName,…}, tags, capturedAt), **FTS5** for keyword,
+  **sqlite-vec** for embeddings. Markdown export for portability/backup.
+- **Embeddings** local & in-process via `@xenova/transformers`
+  (`all-MiniLM-L6-v2`) — no external service, offline.
+- **Retrieval:** hybrid keyword + vector; returns captures with scores. Reused by
+  search, ask, and canvas collation.
 
-## Phase 2 — build only the gaps (Dylan code style, tested)
+### 3. Canvas collation engine (the custom core)
+- Per canvas: retrieve top-k relevant captures for the topic → LLM synthesizes a
+  document with **inline citations** to those captures → **merge** into the
+  existing canvas doc **preserving locked (user-edited) spans**, updating only
+  AI spans and appending sections for new sources.
+- **Provenance & citation model:** the canvas doc is stored as structured
+  rich-text (ProseMirror JSON) where ranges carry marks: `origin: ai | user`
+  and `citations: captureId[]`. Editing a range flips it to `user` (locked).
+- **Merge (pragmatic v1):** sentence-level anchoring — treat user-locked
+  sentences as fixed anchors; regenerate only the AI regions between them; never
+  rewrite locked spans. (True word-level diff/merge is a later refinement.)
+- **Trigger:** manual **Refresh** per canvas + a "N new sources since last
+  refresh" nudge. Not on every capture (LLM cost).
 
-Built only if the adopted stack proves insufficient. Each POSTs to the Joplin
-Data API, so Joplin remains the store/UI/search.
+### 4. Search & Ask (top bar)
+- **Search:** hybrid retrieval over the corpus; results are content-first cards
+  linking to source + canvases that cite them.
+- **Ask:** retrieve top-k → LLM answers **grounded only in those captures** →
+  answer with inline citations back to captures. Scope defaults to global; a
+  canvas-scoped ask restricts to that topic's relevant sources.
 
-1. **Box-draw / precise-anchor browser capturer.** Joplin's clipper captures a
-   selection but not a jump-to-exact-spot anchor. A small extension: draw a box
-   (or select text) → read the real DOM text under it + surrounding paragraph +
-   URL + a **`#:~:text=` scroll-to anchor** + optional screenshot → POST to the
-   Joplin Data API. Enables true "jump back to that sentence."
-2. **Screen-box OCR helper.** For non-web sources: transparent overlay → region
-   screenshot → OCR (`tesseract.js`) → POST to Joplin Data API. (Joplin clips
-   screenshots but does not OCR them to text.)
-3. **Related-notes panel (optional).** Khoj/Jarvis already give semantic *search*;
-   build a dedicated "related to this note" panel only if search isn't enough.
+### 5. UI (React renderer)
+- **Top:** prominent search/ask (command-palette style).
+- **Left:** canvases (create/rename/merge) + corpus count/all-captures search.
+- **Main:** the open canvas's living document (TipTap/ProseMirror editor) with
+  span provenance tints, inline citation superscripts (hover → capture), Refresh
+  + new-source nudge, and a span popover (provenance / sources / pin).
+- Light/dark, clean modern styling.
 
-## Jump to Source
+## Tech Stack (Dylan conventions)
 
-- **Web:** stored source URL (Joplin clipper) or `url + #:~:text=` anchor (Phase 2
-  capturer) → reopen and scroll to the exact passage.
-- **Screen/app (Phase 2):** screenshot + OCR text stand on their own.
+- **App:** Electron + React + TypeScript. Arrow-const, named exports, single
+  quotes + semicolons, no trailing commas, `constants.ts` single config surface,
+  no `any`, no `import type`, kebab-case files.
+- **UI libs:** MUI (`sx` only), TanStack Query over an `ApiClient.request()`
+  wrapper, zustand for client state, framer-motion, FontAwesome, luxon.
+- **Editor:** TipTap (ProseMirror) with custom marks for `origin` + `citations`.
+- **Data/retrieval:** better-sqlite3, sqlite-vec, FTS5, `@xenova/transformers`.
+- **LLM:** Vercel AI SDK (`ai`) + `@ai-sdk/anthropic` (Claude) + Ollama provider;
+  provider/model is config, zero code change to switch.
+- **Validation:** yup. **Logging:** bare `console.*`. **Tests:** vitest (kept).
 
-## Out of Scope (for now)
+## Open decision for review
 
-- A custom note engine / storage / UI (Joplin provides these).
-- A custom embeddings/search service (Khoj/Jarvis provide these).
-- Live highlight overlays on the original source.
-- Code/editor (VS Code) capture.
-- Multi-device sync (use Joplin's own sync if needed later).
+- **Retrieval layer: self-contained (recommended) vs Khoj.** Recommendation:
+  build retrieval in-app (transformers.js + sqlite-vec) so the OSS product is a
+  **single install** with no Python/Docker dependency, and because collation
+  needs custom LLM orchestration anyway. Khoj remains an optional alternative for
+  users who already run it. (Confirm at review.)
 
-## Notes / risks
+## Distribution (open source)
 
-- **Joplin→Khoj bridge** (markdown folder) is the main integration friction; Jarvis
-  avoids it by indexing in-app. Decide at setup.
-- **Claude support:** native in Khoj; via compatible endpoint in Jarvis — verify.
-- **AGPL (Khoj):** fine for personal self-hosted use; note the license if ever
-  redistributing.
+- **MIT** repo under **github.com/fishpain**. Ships the whole app (no AGPL deps if
+  self-contained retrieval is chosen). `README`, `LICENSE`, `.gitignore` in place.
+- Publish via GitHub Desktop (FishPain account) or `gh` once authed to github.com.
+
+## Phasing
+
+1. **Phase 1 — corpus + retrieval + capture + search/ask.** Capture → SQLite
+   (FTS + vec) → hybrid search + grounded ask with citations. A useful tool
+   before canvases exist.
+2. **Phase 2 — canvases + living document + collation/merge + provenance UI.**
+   The custom core: TipTap editor, span provenance/citations, Refresh + merge.
+3. **Phase 3 — screen-region OCR capture; polish; packaging/releases.**
+
+## Risks / notes
+
+- **Word-level merge is the hard part** — start at sentence-level anchoring;
+  don't over-engineer the diff until the simple version bites.
+- **Collation cost/latency** — manual Refresh + incremental (only new sources)
+  keeps LLM usage bounded.
+- **Citation fidelity** — the LLM must cite only retrieved captures; verify
+  citations map to real captureIds and drop/repair hallucinated ones.
+
+## Out of scope (for now)
+
+- Forking Joplin or any app; live highlight overlays on the source; code/editor
+  (VS Code) capture; multi-device sync.

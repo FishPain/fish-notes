@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'path'
 import { openDb } from '../src/db.js'
 import { buildServer } from '../src/server.js'
@@ -26,6 +26,20 @@ const createWindow = (token: string): void => {
       additionalArguments: [`--engine-token=${token}`, `--engine-port=${PORT}`]
     }
   })
+  // Open source links in the user's real browser, never inside the app window.
+  const appUrl = process.env.ELECTRON_RENDERER_URL || ''
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url)
+    return { action: 'deny' }
+  })
+  win.webContents.on('will-navigate', (e, url) => {
+    if (appUrl && url.startsWith(appUrl)) return // allow in-app / HMR navigation
+    if (url.startsWith('http')) {
+      e.preventDefault()
+      shell.openExternal(url)
+    }
+  })
+
   if (process.env.ELECTRON_RENDERER_URL) {
     win.loadURL(process.env.ELECTRON_RENDERER_URL)
   } else {

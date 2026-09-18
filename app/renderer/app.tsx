@@ -33,6 +33,8 @@ const CaptureCard = ({ capture }: { capture: Capture }): React.ReactElement => (
           variant="caption"
           component="a"
           href={`${capture.source.url}${capture.source.anchor || ''}`}
+          target="_blank"
+          rel="noreferrer"
           sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}
         >
           jump to source

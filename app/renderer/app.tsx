@@ -75,12 +75,12 @@ const CaptureCard = ({ capture }: { capture: Capture }): React.ReactElement => {
 }
 
 const SearchView = (): React.ReactElement => {
-  const { query, setQuery, mode } = useUi()
+  const { query, setQuery } = useUi()
   const [asked, setAsked] = useState<AskResult | null>(null)
   const searching = query.trim().length > 0
 
-  // Default view: all captures, newest first. Search view: hybrid results.
-  // Poll so captures sent from the browser extension show up without a manual refresh.
+  // Live search is traditional keyword (FTS) — fast, local, no embeddings — so it
+  // can fire per keystroke. Embeddings are reserved for Ask (grounding the answer).
   const all = useQuery({
     queryKey: ['captures'],
     queryFn: () => api.request<Capture[]>('/capture'),
@@ -88,8 +88,8 @@ const SearchView = (): React.ReactElement => {
     refetchInterval: 4000
   })
   const results = useQuery({
-    queryKey: ['search', query, mode],
-    queryFn: () => api.request<SearchHit[]>(`/search?q=${encodeURIComponent(query)}&mode=${mode}`),
+    queryKey: ['search', query],
+    queryFn: () => api.request<SearchHit[]>(`/search?q=${encodeURIComponent(query)}&mode=keyword`),
     enabled: searching
   })
 
@@ -103,7 +103,7 @@ const SearchView = (): React.ReactElement => {
     onSuccess: (r) => setAsked(r)
   })
   const ask = (): void => {
-    if (searching && !askMut.isPending) askMut.mutate()
+    if (query.trim() && !askMut.isPending) askMut.mutate()
   }
 
   return (

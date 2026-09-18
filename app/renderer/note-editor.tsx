@@ -2,39 +2,52 @@ import React, { useEffect, useRef } from 'react'
 import { Box } from '@mui/material'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import { AiOrigin, Citation } from './editor-marks.js'
-
-interface Capture {
-  id: number
-  source: { url?: string; anchor?: string }
-}
-interface Section {
-  heading: string
-  text: string
-  citations: number[]
-}
+import Link from '@tiptap/extension-link'
+import { marked } from 'marked'
 
 export interface NoteEditorHandle {
-  insertSections: (sections: Section[]) => void
+  insertMarkdown: (md: string) => void
 }
 
-const openCitation = (captures: Map<number, Capture>, id: number): void => {
-  const c = captures.get(id)
-  if (c?.source.url) window.open(`${c.source.url}${c.source.anchor || ''}`, '_blank')
+// If the cursor's block is a `/llm <prompt>` command, return the prompt.
+const readSlashCommand = (line: string): string | null => {
+  const m = line.match(/^\/llm\s+(.+)$/)
+  return m ? m[1].trim() : null
 }
 
 export const NoteEditor = React.forwardRef<
   NoteEditorHandle,
-  { doc: unknown; captures: Map<number, Capture>; onChange: (doc: unknown) => void }
->(({ doc, captures, onChange }, ref) => {
+  { doc: unknown; onChange: (doc: unknown) => void; onCommand: (prompt: string) => Promise<string> }
+>(({ doc, onChange, onCommand }, ref) => {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const editor = useEditor({
-    extensions: [StarterKit, AiOrigin, Citation],
+    extensions: [StarterKit, Link.configure({ openOnClick: true, autolink: true })],
     content: (doc as object) || { type: 'doc', content: [] },
     onUpdate: ({ editor }) => {
       if (saveTimer.current) clearTimeout(saveTimer.current)
       saveTimer.current = setTimeout(() => onChange(editor.getJSON()), 800)
+    },
+    editorProps: {
+      handleKeyDown: (view, event) => {
+        if (event.key !== 'Enter') return false
+        const { $from } = view.state.selection
+        const prompt = readSlashCommand($from.parent.textContent)
+        if (!prompt) return false
+        event.preventDefault()
+        const start = $from.start()
+        const end = $from.end()
+        onCommand(prompt).then((md) => {
+          if (!editor) return
+          editor
+            .chain()
+            .focus()
+            .deleteRange({ from: start, to: end })
+            .insertContent(marked.parse(md, { async: false }) as string)
+            .run()
+        })
+        return true
+      }
     }
   })
 
@@ -42,33 +55,19 @@ export const NoteEditor = React.forwardRef<
     if (!editor) return
     const el = editor.view.dom
     const onClick = (e: MouseEvent): void => {
-      const target = (e.target as HTMLElement).closest('sup.citation') as HTMLElement | null
-      if (target) openCitation(captures, Number(target.getAttribute('data-capture-id')))
+      const a = (e.target as HTMLElement).closest('a') as HTMLAnchorElement | null
+      if (a?.href) {
+        e.preventDefault()
+        window.open(a.href, '_blank')
+      }
     }
     el.addEventListener('click', onClick)
     return () => el.removeEventListener('click', onClick)
-  }, [editor, captures])
+  }, [editor])
 
   React.useImperativeHandle(ref, () => ({
-    insertSections: (sections: Section[]) => {
-      if (!editor) return
-      const chain = editor.chain().focus('end')
-      for (const s of sections) {
-        chain
-          .insertContent({ type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: s.heading }] })
-          .insertContent({
-            type: 'paragraph',
-            content: [
-              { type: 'text', marks: [{ type: 'aiOrigin' }], text: s.text + ' ' },
-              ...s.citations.map((id) => ({
-                type: 'text',
-                marks: [{ type: 'citation', attrs: { captureId: id } }],
-                text: `[${id}]`
-              }))
-            ]
-          })
-      }
-      chain.run()
+    insertMarkdown: (md: string) => {
+      editor?.chain().focus('end').insertContent(marked.parse(md, { async: false }) as string).run()
     }
   }))
 
@@ -76,8 +75,7 @@ export const NoteEditor = React.forwardRef<
     <Box
       sx={{
         '& .ProseMirror': { outline: 'none', minHeight: 300, lineHeight: 1.7 },
-        '& .ai-origin': { bgcolor: 'rgba(120,140,255,.10)' },
-        '& sup.citation': { color: 'primary.light', cursor: 'pointer', ml: '2px' }
+        '& .ProseMirror a': { color: 'primary.light', cursor: 'pointer' }
       }}
     >
       <EditorContent editor={editor} />

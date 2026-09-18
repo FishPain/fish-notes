@@ -31,10 +31,12 @@ line inside a long document. I want to:
   has room for `filePath`/`line` when we add it).
 - **AI is hybrid:** embeddings + search always run **locally**; question
   answering can use **local (Ollama)** or **cloud (user API key)** per query.
-- **The engine runs in Docker.** Reproducible, nothing to install on the host.
-  Trade-off accepted: the container must be running to capture/search, and it
-  depends on Docker Desktop on macOS.
-- **UI is a web page served by the container** (no Electron needed for MVP).
+- **The engine is a single local service, always-on via a macOS LaunchAgent.**
+  The goal was "make sure it's always booted up" — `launchd` with `KeepAlive`
+  auto-starts it at login and relaunches it if it dies. No Docker Desktop
+  dependency; ships as one distributable. (Docker was considered but is heavier
+  than needed for a personal single-machine tool.)
+- **UI is a web page served by the engine** (no Electron needed for MVP).
   A native Swift app / Electron shell can come later; both are just clients.
 
 ## Architecture
@@ -49,12 +51,13 @@ line inside a long document. I want to:
         └──────────────┬───────────────────┘
                        ▼
         ┌──────────────────────────────────────┐
-        │  ENGINE  (Docker container)           │
+        │  ENGINE  (local service, launchd)     │
         │  - HTTP API: /capture /search /ask    │
-        │  - SQLite (volume): notes, FTS5, vec  │
+        │  - SQLite: notes, FTS5, vec           │
         │  - local embedding model              │
         │  - optional local LLM (Ollama)        │
         │  - serves the web UI                  │
+        │  - always-on via LaunchAgent+KeepAlive│
         └──────────────────────────────────────┘
                        ▲
                        │ browser opens local UI
@@ -90,7 +93,7 @@ left empty.
 
 ## Components
 
-### 1. Engine (Docker container) — Phase 1
+### 1. Engine (local service, launchd) — Phase 1
 
 - **HTTP API** (single small service):
   - `POST /capture` — validate, store, embed. Requires shared token.
@@ -102,14 +105,14 @@ left empty.
   - `POST/DELETE /notes/:id/links` — manage manual links (backlinks).
   - `GET  /export?format=markdown|json` — export all notes.
   - serves the static web UI.
-- **Storage** (SQLite on a mounted volume so it survives restarts):
+- **Storage** (SQLite file in `~/Library/Application Support/`, survives restarts):
   - `notes` — schema fields (incl. `tags`) + `id`.
   - `notes_fts` (FTS5) — keyword search.
   - `vec_notes` (sqlite-vec) — one embedding per note (also powers "related notes").
   - `note_links` — manual explicit links (`from_id`, `to_id`).
 - **Embeddings:** local small model (e.g. `all-MiniLM-L6-v2`). Nothing leaves
   the machine for indexing/search.
-- **LLM for /ask:** local Ollama (containerized) or cloud via user-supplied key.
+- **LLM for /ask:** local Ollama or cloud via user-supplied key.
 
 ### 2. Browser extension — Phase 1
 
@@ -188,10 +191,10 @@ insert into `notes`, update `notes_fts`, compute + store embedding in
   note. The captured `content`/`contextText` are an **immutable snapshot** of
   the source and are read-only. No status/done/workflow fields (notes are
   reference, not tasks).
-- **Backup:** single machine; the SQLite file lives in a Docker volume —
-  "backup" = copy that file (optionally an auto-export on a schedule). **No
-  cloud sync** now; the volume can later point at a synced folder (iCloud/
-  Dropbox) for a second Mac, one engine at a time.
+- **Backup:** single machine; the SQLite file lives in `~/Library/Application
+  Support/` — "backup" = copy that file (optionally an auto-export on a
+  schedule). **No cloud sync** now; the DB path can later point at a synced
+  folder (iCloud/Dropbox) for a second Mac, one engine at a time.
 - **Export:** both **markdown** (readable) and **JSON** (full-fidelity backup)
   via `/export`. **Export-all** for now; filtered/subset export deferred.
 
@@ -218,7 +221,7 @@ insert into `notes`, update `notes_fts`, compute + store embedding in
 
 ## Phasing (build order)
 
-1. **Phase 1 (first implementation plan):** engine container (API + SQLite +
+1. **Phase 1 (first implementation plan):** engine service (API + SQLite +
    FTS5 + sqlite-vec + local embeddings) + web UI + browser extension +
    hybrid search + ask (local + cloud). This is a complete, daily-usable tool.
 2. **Phase 2:** native macOS box app (AX + screenshot/OCR) feeding the same

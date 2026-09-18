@@ -52,10 +52,12 @@ const SearchView = (): React.ReactElement => {
   const searching = query.trim().length > 0
 
   // Default view: all captures, newest first. Search view: hybrid results.
+  // Poll so captures sent from the browser extension show up without a manual refresh.
   const all = useQuery({
     queryKey: ['captures'],
     queryFn: () => api.request<Capture[]>('/capture'),
-    enabled: !searching
+    enabled: !searching,
+    refetchInterval: 4000
   })
   const results = useQuery({
     queryKey: ['search', query, mode],

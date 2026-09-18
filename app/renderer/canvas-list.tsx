@@ -15,6 +15,7 @@ export const CanvasList = (): React.ReactElement => {
   const { view, selectedCanvasId, openSearch, openCanvas } = useUi()
   const qc = useQueryClient()
   const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
 
   const canvases = useQuery({
     queryKey: ['canvases'],
@@ -22,13 +23,19 @@ export const CanvasList = (): React.ReactElement => {
   })
 
   const create = useMutation({
-    mutationFn: (t: string) => api.request<{ id: number }>('/canvas', { method: 'POST', body: JSON.stringify({ title: t }) }),
+    mutationFn: (body: { title: string; description: string }) =>
+      api.request<{ id: number }>('/canvas', { method: 'POST', body: JSON.stringify(body) }),
     onSuccess: (res) => {
       setTitle('')
+      setDescription('')
       qc.invalidateQueries({ queryKey: ['canvases'] })
       openCanvas(res.id)
     }
   })
+
+  const submit = (): void => {
+    if (title.trim()) create.mutate({ title: title.trim(), description: description.trim() })
+  }
 
   return (
     <Box sx={{ width: 240, borderRight: 1, borderColor: 'divider', p: 1.5, height: '100vh', overflow: 'auto' }}>
@@ -51,18 +58,27 @@ export const CanvasList = (): React.ReactElement => {
         ))}
       </List>
 
-      <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+      <Stack spacing={1} sx={{ mt: 1 }}>
         <TextField
           size="small"
           fullWidth
-          placeholder="New canvas…"
+          placeholder="New canvas title…"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && title.trim()) create.mutate(title.trim())
+            if (e.key === 'Enter') submit()
           }}
         />
-        <IconButton disabled={!title.trim()} onClick={() => create.mutate(title.trim())}>
+        <TextField
+          size="small"
+          fullWidth
+          multiline
+          minRows={2}
+          placeholder="Description (optional) — helps group sources"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+        <IconButton disabled={!title.trim()} onClick={submit} sx={{ alignSelf: 'flex-end' }}>
           <FontAwesomeIcon icon={faPlus} />
         </IconButton>
       </Stack>

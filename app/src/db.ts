@@ -18,10 +18,11 @@ const SCHEMA = [
   `CREATE VIRTUAL TABLE IF NOT EXISTS captures_fts USING fts5(capture_id UNINDEXED, text)`,
   `CREATE VIRTUAL TABLE IF NOT EXISTS vec_captures USING vec0(capture_id INTEGER PRIMARY KEY, embedding FLOAT[${EMBED_DIM}])`,
   `CREATE TABLE IF NOT EXISTS canvases (
-     id        INTEGER PRIMARY KEY AUTOINCREMENT,
-     title     TEXT NOT NULL,
-     doc       TEXT NOT NULL DEFAULT '[]',
-     updatedAt TEXT NOT NULL
+     id          INTEGER PRIMARY KEY AUTOINCREMENT,
+     title       TEXT NOT NULL,
+     description TEXT NOT NULL DEFAULT '',
+     doc         TEXT NOT NULL DEFAULT '[]',
+     updatedAt   TEXT NOT NULL
    )`
 ]
 

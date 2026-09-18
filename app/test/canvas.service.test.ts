@@ -13,12 +13,13 @@ const seg = (over: Partial<Segment>): Segment => ({
 })
 
 describe('canvas.service', () => {
-  it('creates, lists, and reads a canvas with an empty doc', () => {
+  it('creates, lists, and reads a canvas with title, description, and an empty doc', () => {
     const db = openDb(':memory:')
-    const id = createCanvas(db, 'New Agent')
+    const id = createCanvas(db, 'New Agent', 'internal systems for the agent build')
     expect(listCanvases(db).map((c) => c.title)).toContain('New Agent')
     const c = getCanvas(db, id)!
     expect(c.title).toBe('New Agent')
+    expect(c.description).toBe('internal systems for the agent build')
     expect(c.doc).toEqual([])
     db.close()
   })

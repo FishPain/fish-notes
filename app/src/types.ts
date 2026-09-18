@@ -43,6 +43,7 @@ export interface Segment {
 export interface Canvas {
   id: number
   title: string
+  description: string
   doc: Segment[]
   updatedAt: string
 }

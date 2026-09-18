@@ -24,7 +24,9 @@ export const collate = async (
   const canvas = getCanvas(db, canvasId)
   if (!canvas) return []
 
-  const hits = await hybridSearch(db, canvas.title, RETRIEVE_K)
+  // Title + description drives both retrieval and the synthesis prompt.
+  const topic = [canvas.title, canvas.description].filter(Boolean).join(' — ')
+  const hits = await hybridSearch(db, topic, RETRIEVE_K)
   const sources = hits.map((h) => ({ id: h.capture.id, content: h.capture.content }))
   const allowed = new Set(sources.map((s) => s.id))
 
@@ -33,7 +35,7 @@ export const collate = async (
     .filter((x) => x.s.origin === 'user')
 
   const raw = await generateSegments(
-    canvas.title,
+    topic,
     sources,
     locked.map((x) => x.s.text)
   )

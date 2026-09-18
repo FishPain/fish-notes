@@ -24,13 +24,27 @@ line inside a long document. I want to:
   changes.)
 - **Capture is decoupled from the app.** While the app is running it exposes a
   local HTTP endpoint; any number of capturers POST the same note schema to it.
-- **Two capturers ship** (browser first, then macOS):
+- **Two capturers ship** (browser first, then screen):
   - **Browser extension** — the priority, since web is the main source.
-  - **macOS "box" app** — native menu-bar agent for non-web sources.
+  - **Screen-box capture** — built into the Electron app (transparent overlay +
+    screenshot + OCR) for non-web sources. Not a separate native app.
 - **Code/editor capture is out of scope for now** (deferred; the same schema
   has room for `filePath`/`line` when we add it).
 - **AI is hybrid:** embeddings + search always run **locally**; question
   answering can use **local (Ollama)** or **cloud (user API key)** per query.
+- **LLM access goes through litellm (proxy sidecar).** A bundled `litellm`
+  proxy exposes an OpenAI-compatible endpoint; the Node engine calls that. Ollama
+  ↔ cloud is a **config/model-name change, zero code change**. (litellm is
+  Python, hence a sidecar process rather than in-Node.)
+- **Embeddings stay local and in-process** (`transformers.js`), NOT via litellm,
+  so core search works offline with no external deps (no Ollama required just to
+  search). litellm is used only for the "ask" feature.
+- **Phase 2 (screen capture) is pure Electron — no native Swift.** The macOS
+  Accessibility API is reliable only on native Cocoa apps (Chromium/Electron
+  apps and many cross-platform toolkits expose little/no usable text), so AX is
+  not a dependable universal path. Instead: transparent overlay window +
+  `desktopCapturer` screenshot + OCR (`tesseract.js`). A native AX helper is a
+  possible *later* upgrade only if OCR accuracy proves insufficient.
 - **The app is a normal Electron app you open — not a background service.**
   No always-on/launchd. When it's closed, the browser extension **queues
   captures locally and flushes them when you next open the app** (a just-clipped
@@ -43,10 +57,9 @@ line inside a long document. I want to:
   the high-value AI functionality (local embeddings, vector search, hybrid
   search, Q&A) has mature drop-in JS libraries (`transformers.js`, `sqlite-vec`)
   — far more functionality per unit effort than hand-rolling on Swift/CoreML.
-- **Phase 2 native capture tool is a small separate helper**, not a rewrite: it
-  POSTs to the same local endpoint. (A native SwiftUI app was considered; it
-  wins only on "native feel"/WidgetKit, which is deprioritized in favor of
-  functionality.)
+- **Phase 2 screen capture lives in the same Electron app.** (A native SwiftUI
+  app / AX helper was considered; it wins only on "native feel"/WidgetKit and
+  AX-quality text — deprioritized in favor of functionality and one stack.)
 
 ## Architecture
 
@@ -64,11 +77,17 @@ line inside a long document. I want to:
         │  Node engine:                         │
         │  - HTTP capture listener (while open) │
         │  - SQLite: notes, FTS5, vec           │
-        │  - local embedding model              │
-        │  - optional local LLM (Ollama)        │
+        │  - local embeddings (transformers.js) │
+        │  - screen-box capture (Phase 2:       │
+        │    overlay + desktopCapturer + OCR)   │
         │  Web UI (in the app window):          │
         │  - browse / search / ask / edit       │
-        └──────────────────────────────────────┘
+        └───────────────┬──────────────────────┘
+                        │ OpenAI-compatible calls (ask only)
+                        ▼
+              ┌───────────────────────┐
+              │ litellm proxy sidecar │→ Ollama (local) or cloud
+              └───────────────────────┘
 ```
 
 ### Unified note schema
@@ -117,9 +136,12 @@ The HTTP capture listener is active only while the app is open.
   - `notes_fts` (FTS5) — keyword search.
   - `vec_notes` (sqlite-vec) — one embedding per note (also powers "related notes").
   - `note_links` — manual explicit links (`from_id`, `to_id`).
-- **Embeddings:** local small model (e.g. `all-MiniLM-L6-v2`). Nothing leaves
-  the machine for indexing/search.
-- **LLM for /ask:** local Ollama or cloud via user-supplied key.
+- **Embeddings:** local small model (e.g. `all-MiniLM-L6-v2`) in-process via
+  `transformers.js`. Nothing leaves the machine for indexing/search; no external
+  service required.
+- **LLM for /ask:** via a bundled **litellm proxy sidecar** (OpenAI-compatible).
+  The engine calls the proxy; the proxy routes to Ollama (local) or cloud by
+  config/model name — no code change to switch. API keys stored locally.
 
 ### 2. Browser extension — Phase 1
 
@@ -151,14 +173,17 @@ The HTTP capture listener is active only while the app is open.
   **linked notes** (manual backlinks) with an "add link" action.
 - Export all as markdown or JSON.
 
-### 4. macOS box app (native, menu-bar) — Phase 2
+### 4. Screen-box capture (in the Electron app) — Phase 2
 
-- Global hotkey → transparent full-screen box overlay → draw rectangle.
-- Read text via macOS **Accessibility API** hit-test where the app exposes it
-  (great for native apps); otherwise **screenshot + OCR** fallback so nothing is
-  un-capturable.
-- Fills `appName`, `windowTitle`, `screenshot`; POSTs the same schema.
-- Same offline queue/retry behavior.
+- Global hotkey → Electron opens a transparent, always-on-top, full-screen
+  overlay window → draw rectangle.
+- `desktopCapturer` screenshots the boxed region (needs macOS **Screen
+  Recording** permission, granted once).
+- **OCR** the screenshot to text via `tesseract.js` (local); the image is kept
+  regardless. Best-effort `appName`/`windowTitle` from the frontmost window.
+- Writes a note with the same schema directly to the engine (in-process).
+- No native Swift / AX. (Later upgrade path: a native AX helper for
+  AX-quality text on native apps, only if OCR proves insufficient.)
 
 ## Data Flow
 
@@ -172,7 +197,8 @@ insert into `notes`, update `notes_fts`, compute + store embedding in
 - **Semantic:** embed query → sqlite-vec top-k → merge with keyword hits (hybrid
   by default).
 - **Ask:** retrieve top-k relevant notes → send *only those* to the answerer
-  (local Ollama or cloud) → return answer + links to the source notes.
+  via the litellm proxy (routes to local Ollama or cloud by config) → return
+  answer + links to the source notes.
 
 ## Jump to Source
 
@@ -214,6 +240,8 @@ insert into `notes`, update `notes_fts`, compute + store embedding in
   not skipped.)
 - **Source changes/disappears:** `content` + `contextText` + `screenshot` are
   self-contained; jump-to-source is best-effort on top.
+- **Screen Recording permission (Phase 2):** `desktopCapturer` needs it; prompt
+  once, degrade gracefully (capture disabled) if denied.
 - **Chrome screenshot limits:** `captureVisibleTab` grabs only the visible tab
   area — acceptable, since the box is drawn on visible content.
 
@@ -231,10 +259,10 @@ insert into `notes`, update `notes_fts`, compute + store embedding in
 1. **Phase 1 (first implementation plan):** Electron app (Node engine — API +
    SQLite + FTS5 + sqlite-vec + local embeddings — plus the web UI) + browser
    extension + hybrid search + ask (local + cloud). A complete, daily-usable tool.
-2. **Phase 2:** native macOS box app (AX + screenshot/OCR) feeding the same
-   endpoint.
-3. **Later (deferred):** code/editor capture (`filePath`/`line`); cloud sync;
-   WidgetKit widget / native shell.
+2. **Phase 2:** in-app screen-box capture (Electron overlay + `desktopCapturer`
+   + `tesseract.js` OCR).
+3. **Later (deferred):** native AX helper (only if OCR is insufficient);
+   code/editor capture (`filePath`/`line`); cloud sync; WidgetKit widget.
 
 ## Out of Scope (for now)
 

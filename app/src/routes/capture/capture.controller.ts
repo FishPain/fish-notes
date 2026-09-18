@@ -10,8 +10,15 @@ const CaptureSchema = object({
   content: string().trim().required(),
   contextText: string().trim(),
   note: string().trim(),
-  source: object({ type: string().oneOf(['web', 'app']).required() }).required(),
-  screenshot: string(),
+  // Keep url/anchor/etc. — without them here, stripUnknown drops the source location.
+  source: object({
+    type: string().oneOf(['web', 'app']).required(),
+    url: string(),
+    anchor: string(),
+    appName: string(),
+    windowTitle: string()
+  }).required(),
+  screenshot: string().nullable(), // capturers send null when there's no image
   tags: array(string()),
   capturedAt: string()
 })

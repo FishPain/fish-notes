@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
-import { Box, List, ListItemButton, ListItemText, Typography, TextField, Button, Stack, FormControlLabel, Checkbox, Popover } from '@mui/material'
+import { Box, List, ListItem, ListItemButton, ListItemText, Typography, TextField, Button, IconButton, Stack, FormControlLabel, Checkbox, Popover } from '@mui/material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faPlus, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons'
+import { faPlus, faMagnifyingGlass, faTrash } from '@fortawesome/free-solid-svg-icons'
 import { useUi } from './store.js'
 import { api } from './main.js'
 
@@ -38,8 +38,20 @@ export const CanvasList = (): React.ReactElement => {
     }
   })
 
+  const remove = useMutation({
+    mutationFn: (id: number) => api.request<void>(`/canvas/${id}`, { method: 'DELETE' }),
+    onSuccess: (_r, id) => {
+      qc.invalidateQueries({ queryKey: ['canvases'] })
+      if (view === 'canvas' && selectedCanvasId === id) openSearch()
+    }
+  })
+
   const submit = (): void => {
     if (title.trim()) create.mutate({ title: title.trim(), description: description.trim() })
+  }
+
+  const confirmDelete = (id: number, name: string): void => {
+    if (window.confirm(`Delete "${name}"? This can't be undone.`)) remove.mutate(id)
   }
 
   return (
@@ -52,14 +64,31 @@ export const CanvasList = (): React.ReactElement => {
       <Typography variant="overline" sx={{ opacity: 0.5, px: 1 }}>Notes</Typography>
       <List dense sx={{ flex: 1 }}>
         {(canvases.data || []).map((c) => (
-          <ListItemButton
+          <ListItem
             key={c.id}
-            selected={view === 'canvas' && selectedCanvasId === c.id}
-            onClick={() => openCanvas(c.id)}
-            sx={{ borderRadius: 2 }}
+            disablePadding
+            sx={{ '&:hover .del': { opacity: 0.7 } }}
+            secondaryAction={
+              <IconButton
+                edge="end"
+                size="small"
+                aria-label="delete note"
+                className="del"
+                onClick={() => confirmDelete(c.id, c.title)}
+                sx={{ opacity: 0, transition: 'opacity .15s' }}
+              >
+                <FontAwesomeIcon icon={faTrash} style={{ fontSize: 13 }} />
+              </IconButton>
+            }
           >
-            <ListItemText primary={c.title} primaryTypographyProps={{ noWrap: true }} />
-          </ListItemButton>
+            <ListItemButton
+              selected={view === 'canvas' && selectedCanvasId === c.id}
+              onClick={() => openCanvas(c.id)}
+              sx={{ borderRadius: 2, pr: 5 }}
+            >
+              <ListItemText primary={c.title} primaryTypographyProps={{ noWrap: true }} />
+            </ListItemButton>
+          </ListItem>
         ))}
       </List>
 

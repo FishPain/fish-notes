@@ -29,6 +29,18 @@ describe('canvas routes', () => {
     server.close()
   })
 
+  it('deletes a canvas by id (then 404s)', async () => {
+    const server = makeServer()
+    const { port } = server.address() as { port: number }
+    const base = `http://localhost:${port}`
+    const headers = { 'content-type': 'application/json', authorization: `Bearer ${TOKEN}` }
+
+    const created = await (await fetch(`${base}/canvas`, { method: 'POST', headers, body: JSON.stringify({ title: 'Bye' }) })).json()
+    expect((await fetch(`${base}/canvas/${created.id}`, { method: 'DELETE', headers })).status).toBe(204)
+    expect((await fetch(`${base}/canvas/${created.id}`, { headers })).status).toBe(404)
+    server.close()
+  })
+
   it('returns 404 for a missing canvas', async () => {
     const server = makeServer()
     const { port } = server.address() as { port: number }

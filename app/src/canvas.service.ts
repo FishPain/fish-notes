@@ -49,3 +49,7 @@ export const saveDoc = (db: Database.Database, id: number, doc: unknown): void =
 export const markCollated = (db: Database.Database, id: number): void => {
   db.prepare('UPDATE canvases SET collatedAt = ? WHERE id = ?').run(DateTime.now().toISO(), id)
 }
+
+export const deleteCanvas = (db: Database.Database, id: number): void => {
+  db.prepare('DELETE FROM canvases WHERE id = ?').run(id)
+}

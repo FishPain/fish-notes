@@ -3,7 +3,7 @@ import { object, string } from 'yup'
 import Database from 'better-sqlite3'
 import { httpErrors, Reason, throwHttpError } from '../../utils/http-errors.js'
 import { asyncHandler } from '../../utils/async-handler.js'
-import { createCanvas, listCanvases, getCanvas, saveDoc } from '../../canvas.service.js'
+import { createCanvas, listCanvases, getCanvas, saveDoc, deleteCanvas } from '../../canvas.service.js'
 import { countCapturesSince } from '../../capture.service.js'
 import { draftFromSources, completeInline } from '../../draft.service.js'
 import { GenerateMarkdownFn } from '../../markdown-generator.js'
@@ -45,6 +45,15 @@ export const canvasController = (db: Database.Database, generate: GenerateMarkdo
     }
     saveDoc(db, Number(req.params.id), req.body.doc)
     res.status(200).json({ ok: true })
+  })
+
+  router.delete('/:id', (req, res) => {
+    if (!getCanvas(db, Number(req.params.id))) {
+      throwHttpError(httpErrors.notFound, Reason.NotFound, res)
+      return
+    }
+    deleteCanvas(db, Number(req.params.id))
+    res.status(204).end()
   })
 
   router.post(

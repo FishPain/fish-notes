@@ -71,8 +71,10 @@ export const CanvasView = ({ canvasId }: { canvasId: number }): React.ReactEleme
     })
 
   // One-time draft when created with "draft from sources", shown in the modal too.
+  // Gate on canvas.data (not editorRef): on a fresh create the editor isn't
+  // mounted yet, and the ref never triggers a re-run — the doc load does.
   useEffect(() => {
-    if (pendingDraftId !== canvasId || !editorRef.current) return
+    if (pendingDraftId !== canvasId || !canvas.data) return
     setPendingDraft(null)
     requestAi('AI draft from sources', () =>
       api.request<{ markdown: string }>(`/canvas/${canvasId}/draft`, { method: 'POST' }).then((r) => r.markdown)
@@ -81,7 +83,7 @@ export const CanvasView = ({ canvasId }: { canvasId: number }): React.ReactEleme
       qc.invalidateQueries({ queryKey: ['canvas', canvasId] })
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingDraftId, canvasId])
+  }, [pendingDraftId, canvasId, Boolean(canvas.data)])
 
   if (!canvas.data) return <CircularProgress sx={{ m: 4 }} />
   const newCount = canvas.data.newSourceCount ?? 0

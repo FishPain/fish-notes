@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Canvas Notes Capturer — Options</title>
+    <style>
+      body { font: 14px system-ui, sans-serif; padding: 16px; max-width: 420px; }
+      label { display: block; margin: 12px 0 4px; }
+      input { width: 100%; padding: 6px; box-sizing: border-box; }
+      button { margin-top: 16px; padding: 6px 14px; }
+      #status { margin-left: 10px; color: green; }
+    </style>
+  </head>
+  <body>
+    <h1>Canvas Notes Capturer</h1>
+    <form id="form">
+      <label for="baseUrl">Engine URL</label>
+      <input id="baseUrl" type="url" placeholder="http://localhost:7645" />
+      <label for="token">Token</label>
+      <input id="token" type="text" placeholder="Bearer token" />
+      <button type="submit">Save</button>
+      <span id="status"></span>
+    </form>
+    <script src="options.js"></script>
+  </body>
+</html>

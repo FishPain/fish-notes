@@ -8,3 +8,5 @@ dist/
 .env
 .env.*
 .superpowers/
+capturer/extension/content.js
+capturer/extension/background.js

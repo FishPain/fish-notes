@@ -6,10 +6,12 @@
   "engines": { "node": ">=20 <25" },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "esbuild content=src/content-entry.ts background=src/background-entry.ts --bundle --format=iife --platform=browser --outdir=extension"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.268",
+    "esbuild": "^0.20.0",
     "@types/node": "^20.0.0",
     "jsdom": "^24.0.0",
     "typescript": "^5.4.0",

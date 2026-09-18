@@ -4,15 +4,10 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import { Markdown } from 'tiptap-markdown'
+import { LlmPrompt } from './llm-prompt'
 
 export interface NoteEditorHandle {
   insertMarkdown: (md: string) => void
-}
-
-// If the cursor's block is a `/llm <prompt>` command, return the prompt.
-const readSlashCommand = (line: string): string | null => {
-  const m = line.match(/^\/llm\s+(.+)$/)
-  return m ? m[1].trim() : null
 }
 
 export const NoteEditor = React.forwardRef<
@@ -25,30 +20,13 @@ export const NoteEditor = React.forwardRef<
     extensions: [
       StarterKit,
       Link.configure({ openOnClick: true, autolink: true }),
-      Markdown.configure({ html: false, linkify: true })
+      Markdown.configure({ html: false, linkify: true }),
+      LlmPrompt.configure({ onRun: onCommand })
     ],
     content: (doc as object) || { type: 'doc', content: [] },
     onUpdate: ({ editor }) => {
       if (saveTimer.current) clearTimeout(saveTimer.current)
       saveTimer.current = setTimeout(() => onChange(editor.getJSON()), 800)
-    },
-    editorProps: {
-      handleKeyDown: (view, event) => {
-        if (event.key !== 'Enter') return false
-        const { $from } = view.state.selection
-        const prompt = readSlashCommand($from.parent.textContent)
-        if (!prompt) return false
-        event.preventDefault()
-        const start = $from.start()
-        const end = $from.end()
-        onCommand(prompt).then((md) => {
-          if (!editor) return
-          const chain = editor.chain().focus().deleteRange({ from: start, to: end })
-          if (md) chain.insertContent(md)
-          chain.run()
-        })
-        return true
-      }
     }
   })
 

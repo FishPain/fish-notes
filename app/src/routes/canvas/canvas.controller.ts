@@ -5,11 +5,12 @@ import { httpErrors, Reason, throwHttpError } from '../../utils/http-errors.js'
 import { asyncHandler } from '../../utils/async-handler.js'
 import { createCanvas, listCanvases, getCanvas, saveDoc } from '../../canvas.service.js'
 import { countCapturesSince } from '../../capture.service.js'
-import { draftFromSources, GenerateSegmentsFn } from '../../draft.service.js'
+import { draftFromSources, completeInline } from '../../draft.service.js'
+import { GenerateMarkdownFn } from '../../markdown-generator.js'
 
 const CreateSchema = object({ title: string().trim().required(), description: string().trim() })
 
-export const canvasController = (db: Database.Database, generateSegments: GenerateSegmentsFn): Router => {
+export const canvasController = (db: Database.Database, generate: GenerateMarkdownFn): Router => {
   const router = Router()
 
   router.post(
@@ -53,8 +54,21 @@ export const canvasController = (db: Database.Database, generateSegments: Genera
         throwHttpError(httpErrors.notFound, Reason.NotFound, res)
         return
       }
-      const sections = await draftFromSources(db, Number(req.params.id), generateSegments)
-      res.json({ sections })
+      const markdown = await draftFromSources(db, Number(req.params.id), generate)
+      res.json({ markdown })
+    })
+  )
+
+  router.post(
+    '/:id/complete',
+    asyncHandler(async (req, res) => {
+      if (!getCanvas(db, Number(req.params.id))) {
+        throwHttpError(httpErrors.notFound, Reason.NotFound, res)
+        return
+      }
+      const { prompt = '', doc = '' } = req.body as { prompt?: string; doc?: string }
+      const markdown = await completeInline(db, Number(req.params.id), prompt, doc, generate)
+      res.json({ markdown })
     })
   )
 

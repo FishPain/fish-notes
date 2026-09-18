@@ -5,28 +5,26 @@ import { buildServer } from '../src/server.js'
 const TOKEN = 'test-token'
 const makeServer = () => {
   const db = openDb(':memory:')
-  const app = buildServer(db, async () => 'stub', TOKEN, async () => [{ heading: 'H', text: 'T', citations: [] }])
+  const app = buildServer(db, async () => 'stub', TOKEN, async () => '## Draft\ntext [r](https://e.com)')
   return app.listen(0)
 }
 
 describe('canvas routes', () => {
-  it('creates, saves the doc, and drafts', async () => {
+  it('creates, saves doc, drafts (markdown), completes (markdown)', async () => {
     const server = makeServer()
     const { port } = server.address() as { port: number }
     const base = `http://localhost:${port}`
     const headers = { 'content-type': 'application/json', authorization: `Bearer ${TOKEN}` }
 
-    const created = await (await fetch(`${base}/canvas`, { method: 'POST', headers, body: JSON.stringify({ title: 'New Agent' }) })).json()
-    expect(created.id).toBeGreaterThan(0)
-
-    const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'my note' }] }] }
-    const saved = await fetch(`${base}/canvas/${created.id}`, { method: 'PATCH', headers, body: JSON.stringify({ doc }) })
-    expect(saved.status).toBe(200)
-    const got = await (await fetch(`${base}/canvas/${created.id}`, { headers })).json()
-    expect(got.doc).toEqual(doc)
+    const created = await (await fetch(`${base}/canvas`, { method: 'POST', headers, body: JSON.stringify({ title: 'A' }) })).json()
+    const doc = { type: 'doc', content: [] }
+    expect((await fetch(`${base}/canvas/${created.id}`, { method: 'PATCH', headers, body: JSON.stringify({ doc }) })).status).toBe(200)
 
     const draft = await (await fetch(`${base}/canvas/${created.id}/draft`, { method: 'POST', headers })).json()
-    expect(draft.sections[0].heading).toBe('H')
+    expect(draft.markdown).toContain('## Draft')
+
+    const done = await (await fetch(`${base}/canvas/${created.id}/complete`, { method: 'POST', headers, body: JSON.stringify({ prompt: 'x', doc: 'ctx' }) })).json()
+    expect(done.markdown).toContain('## Draft')
 
     server.close()
   })

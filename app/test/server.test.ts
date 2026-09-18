@@ -5,7 +5,7 @@ import { buildServer } from '../src/server.js'
 const TOKEN = 'test-token'
 const makeServer = () => {
   const db = openDb(':memory:')
-  const app = buildServer(db, async () => 'stub answer', TOKEN, async () => [])
+  const app = buildServer(db, async () => 'stub answer', TOKEN, async () => 'stub markdown')
   return app.listen(0)
 }
 
@@ -103,7 +103,7 @@ describe('server', () => {
         throw new Error('boom')
       },
       TOKEN,
-      async () => []
+      async () => 'stub markdown'
     )
     const server = app.listen(0)
     const { port } = server.address() as { port: number }

@@ -12,13 +12,21 @@ const hydrate = (db: Database.Database, rows: { capture_id: number; score: numbe
   return out
 }
 
+// ponytail: FTS5 MATCH parses punctuation as query syntax, so a natural-language
+// question throws. Quote each word token and OR them for recall. Naive tokenizer,
+// swap for a real query parser if operators (AND/NEAR/prefix) are ever needed.
+const toFtsQuery = (query: string): string =>
+  (query.match(/[\p{L}\p{N}]+/gu) || []).map((t) => `"${t}"`).join(' OR ')
+
 export const keywordSearch = (db: Database.Database, query: string, limit: number): SearchResult[] => {
+  const match = toFtsQuery(query)
+  if (!match) return []
   const rows = db
     .prepare(
       `SELECT capture_id, -bm25(captures_fts) AS score
        FROM captures_fts WHERE captures_fts MATCH ? ORDER BY score DESC LIMIT ?`
     )
-    .all(query, limit) as { capture_id: number; score: number }[]
+    .all(match, limit) as { capture_id: number; score: number }[]
   return hydrate(db, rows)
 }
 

@@ -32,12 +32,17 @@ const promptNote = (content: string, contextText: string): void => {
   const sel = window.getSelection();
   const rect = sel && sel.rangeCount > 0 ? sel.getRangeAt(0).getBoundingClientRect() : null;
 
+  // position:fixed is viewport-relative, and getBoundingClientRect() already is
+  // too — so do NOT add scrollX/scrollY (that pushes the box off-screen when the
+  // page is scrolled). Clamp near the viewport edges so it stays visible.
+  const top = Math.min(rect ? rect.bottom + 4 : 60, window.innerHeight - 60);
+  const left = Math.min(rect ? rect.left : 60, window.innerWidth - 280);
   const box = document.createElement('div');
   box.style.cssText =
     'position:fixed;z-index:2147483647;background:#fff;border:1px solid #ccc;border-radius:6px;' +
     'padding:6px;box-shadow:0 2px 8px rgba(0,0,0,.2);' +
-    'top:' + ((rect ? rect.bottom + window.scrollY : 60) + 4) + 'px;' +
-    'left:' + (rect ? rect.left + window.scrollX : 60) + 'px';
+    'top:' + Math.max(8, top) + 'px;' +
+    'left:' + Math.max(8, left) + 'px';
 
   const input = document.createElement('input');
   input.type = 'text';

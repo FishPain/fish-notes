@@ -32,13 +32,17 @@ line inside a long document. I want to:
   has room for `filePath`/`line` when we add it).
 - **AI is hybrid:** embeddings + search always run **locally**; question
   answering can use **local (Ollama)** or **cloud (user API key)** per query.
-- **LLM access goes through litellm (proxy sidecar).** A bundled `litellm`
-  proxy exposes an OpenAI-compatible endpoint; the Node engine calls that. Ollama
-  ↔ cloud is a **config/model-name change, zero code change**. (litellm is
-  Python, hence a sidecar process rather than in-Node.)
-- **Embeddings stay local and in-process** (`transformers.js`), NOT via litellm,
-  so core search works offline with no external deps (no Ollama required just to
-  search). litellm is used only for the "ask" feature.
+- **LLM access uses the official `openai` Node SDK with a configurable
+  `baseURL` + model.** Ollama exposes an OpenAI-compatible endpoint
+  (`http://localhost:11434/v1`) and cloud providers are OpenAI-compatible too, so
+  Ollama ↔ cloud is a **config/model-name change, zero code change** — no Python,
+  no sidecar, one dependency. (litellm was considered but is Python; a Node-only
+  path is simpler. Vercel AI SDK / token.js are fallbacks if broader provider
+  features are ever needed.)
+- **Embeddings stay local and in-process** (`transformers.js`), separate from the
+  LLM path, so core search works offline with no external deps (no Ollama
+  required just to search). The `openai` SDK path is used only for the "ask"
+  feature.
 - **Phase 2 (screen capture) is pure Electron — no native Swift.** The macOS
   Accessibility API is reliable only on native Cocoa apps (Chromium/Electron
   apps and many cross-platform toolkits expose little/no usable text), so AX is
@@ -83,11 +87,11 @@ line inside a long document. I want to:
         │  Web UI (in the app window):          │
         │  - browse / search / ask / edit       │
         └───────────────┬──────────────────────┘
-                        │ OpenAI-compatible calls (ask only)
+                        │ `openai` SDK, configurable baseURL (ask only)
                         ▼
-              ┌───────────────────────┐
-              │ litellm proxy sidecar │→ Ollama (local) or cloud
-              └───────────────────────┘
+              ┌───────────────────────────────┐
+              │ Ollama /v1 (local) or cloud    │  (OpenAI-compatible)
+              └───────────────────────────────┘
 ```
 
 ### Unified note schema
@@ -139,9 +143,10 @@ The HTTP capture listener is active only while the app is open.
 - **Embeddings:** local small model (e.g. `all-MiniLM-L6-v2`) in-process via
   `transformers.js`. Nothing leaves the machine for indexing/search; no external
   service required.
-- **LLM for /ask:** via a bundled **litellm proxy sidecar** (OpenAI-compatible).
-  The engine calls the proxy; the proxy routes to Ollama (local) or cloud by
-  config/model name — no code change to switch. API keys stored locally.
+- **LLM for /ask:** the official **`openai` Node SDK** with a configurable
+  `baseURL` + model. Local = Ollama's OpenAI-compatible endpoint; cloud = any
+  OpenAI-compatible provider. Switch by config/model name — no code change. API
+  keys stored locally.
 
 ### 2. Browser extension — Phase 1
 
@@ -197,8 +202,8 @@ insert into `notes`, update `notes_fts`, compute + store embedding in
 - **Semantic:** embed query → sqlite-vec top-k → merge with keyword hits (hybrid
   by default).
 - **Ask:** retrieve top-k relevant notes → send *only those* to the answerer
-  via the litellm proxy (routes to local Ollama or cloud by config) → return
-  answer + links to the source notes.
+  via the `openai` SDK (baseURL points at local Ollama or cloud by config) →
+  return answer + links to the source notes.
 
 ## Jump to Source
 

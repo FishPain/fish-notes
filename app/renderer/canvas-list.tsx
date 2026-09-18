@@ -79,36 +79,59 @@ export const CanvasList = (): React.ReactElement => {
         onClose={() => setAnchor(null)}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
         transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        slotProps={{ paper: { sx: { borderRadius: 3, width: 360, border: 1, borderColor: 'divider', boxShadow: 8 } } }}
       >
-        <Stack spacing={1.5} sx={{ p: 2, width: 300 }}>
-          <TextField
-            size="small"
-            fullWidth
-            autoFocus
-            placeholder="Note title…"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') submit()
-            }}
-          />
-          <TextField
-            size="small"
-            fullWidth
-            multiline
-            minRows={2}
-            placeholder="Description (optional) — helps group sources"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-          <FormControlLabel
-            control={<Checkbox size="small" checked={draftOnCreate} onChange={(e) => setDraftOnCreate(e.target.checked)} />}
-            label="Draft from sources"
-          />
-          <Button variant="contained" disabled={!title.trim()} onClick={submit} sx={{ textTransform: 'none' }}>
-            Create note
-          </Button>
-        </Stack>
+        <Box sx={{ p: 2.5 }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>New note</Typography>
+          <Stack spacing={2}>
+            <TextField
+              size="small"
+              fullWidth
+              autoFocus
+              label="Title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') submit()
+              }}
+            />
+            <TextField
+              size="small"
+              fullWidth
+              multiline
+              minRows={2}
+              label="Description"
+              placeholder="What is this note about?"
+              helperText="Optional — helps AI pull in the right sources"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+            <FormControlLabel
+              sx={{ alignItems: 'flex-start', ml: 0 }}
+              control={<Checkbox size="small" sx={{ pt: 0 }} checked={draftOnCreate} onChange={(e) => setDraftOnCreate(e.target.checked)} />}
+              label={
+                <Box>
+                  <Typography variant="body2">Draft from sources</Typography>
+                  <Typography variant="caption" sx={{ opacity: 0.6 }}>
+                    AI writes a first draft from your captured sources
+                  </Typography>
+                </Box>
+              }
+            />
+            <Stack direction="row" spacing={1} justifyContent="flex-end">
+              <Button onClick={() => setAnchor(null)} sx={{ textTransform: 'none' }}>Cancel</Button>
+              <Button
+                variant="contained"
+                disableElevation
+                disabled={!title.trim() || create.isPending}
+                onClick={submit}
+                sx={{ textTransform: 'none', fontWeight: 600 }}
+              >
+                {create.isPending ? 'Creating…' : 'Create'}
+              </Button>
+            </Stack>
+          </Stack>
+        </Box>
       </Popover>
     </Box>
   )

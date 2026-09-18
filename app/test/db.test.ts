@@ -4,10 +4,10 @@ import { openDb } from '../src/db.js'
 describe('openDb', () => {
   it('creates tables and loads sqlite-vec', () => {
     const db = openDb(':memory:')
-    const names = db
+    const rows = db
       .prepare("SELECT name FROM sqlite_master WHERE type IN ('table','view')")
-      .all()
-      .map((r: { name: string }) => r.name)
+      .all() as { name: string }[]
+    const names = rows.map((r) => r.name)
     expect(names).toContain('captures')
     expect(names).toContain('captures_fts')
     expect(names).toContain('vec_captures')

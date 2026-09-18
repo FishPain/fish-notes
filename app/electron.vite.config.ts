@@ -1,12 +1,21 @@
-import { defineConfig } from 'electron-vite'
+import { resolve } from 'path'
+import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 
+const root = import.meta.dirname
+
 export default defineConfig({
-  main: { build: { rollupOptions: { input: 'electron/main.ts' } } },
-  preload: { build: { rollupOptions: { input: 'electron/preload.ts' } } },
+  main: {
+    plugins: [externalizeDepsPlugin()],
+    build: { rollupOptions: { input: resolve(root, 'electron/main.ts') } }
+  },
+  preload: {
+    plugins: [externalizeDepsPlugin()],
+    build: { rollupOptions: { input: resolve(root, 'electron/preload.ts') } }
+  },
   renderer: {
-    root: 'renderer',
-    build: { rollupOptions: { input: 'renderer/index.html' } },
+    root: resolve(root, 'renderer'),
+    build: { rollupOptions: { input: resolve(root, 'renderer/index.html') } },
     plugins: [react()]
   }
 })

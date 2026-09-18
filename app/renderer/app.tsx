@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
-import { Box, TextField, Typography, Card, CardContent, Button, Stack, Chip } from '@mui/material'
-import { useQuery } from '@tanstack/react-query'
+import { Box, TextField, Typography, Card, CardContent, Button, Stack, Chip, IconButton } from '@mui/material'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faTrash } from '@fortawesome/free-solid-svg-icons'
 import { useUi } from './store.js'
 import { api } from './main.js'
 import { CanvasList } from './canvas-list.js'
@@ -10,6 +12,7 @@ interface Capture {
   id: number
   content: string
   note: string
+  tags: string[]
   source: { url?: string; anchor?: string }
 }
 interface SearchHit {
@@ -21,30 +24,55 @@ interface AskResult {
   citations: Capture[]
 }
 
-const CaptureCard = ({ capture }: { capture: Capture }): React.ReactElement => (
-  <Card sx={{ mb: 1 }}>
-    <CardContent>
-      <Typography>{capture.content}</Typography>
-      {capture.note && (
-        <Typography variant="body2" sx={{ mt: 0.5, color: 'primary.light' }}>
-          {capture.note}
-        </Typography>
-      )}
-      {capture.source.url && (
-        <Typography
-          variant="caption"
-          component="a"
-          href={`${capture.source.url}${capture.source.anchor || ''}`}
-          target="_blank"
-          rel="noreferrer"
-          sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}
-        >
-          jump to source
-        </Typography>
-      )}
-    </CardContent>
-  </Card>
-)
+const CaptureCard = ({ capture }: { capture: Capture }): React.ReactElement => {
+  const qc = useQueryClient()
+  const del = useMutation({
+    mutationFn: () => api.request<void>(`/capture/${capture.id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['captures'] })
+      qc.invalidateQueries({ queryKey: ['search'] })
+    }
+  })
+
+  return (
+    <Card sx={{ mb: 1 }}>
+      <CardContent>
+        <Stack direction="row" alignItems="flex-start" spacing={1}>
+          <Box sx={{ flex: 1 }}>
+            <Typography>{capture.content}</Typography>
+            {capture.note && (
+              <Typography variant="body2" sx={{ mt: 0.5, color: 'primary.light' }}>
+                {capture.note}
+              </Typography>
+            )}
+            {capture.tags?.length > 0 && (
+              <Stack direction="row" spacing={0.5} sx={{ mt: 0.5, flexWrap: 'wrap' }}>
+                {capture.tags.map((t) => (
+                  <Chip key={t} size="small" label={t} />
+                ))}
+              </Stack>
+            )}
+            {capture.source.url && (
+              <Typography
+                variant="caption"
+                component="a"
+                href={`${capture.source.url}${capture.source.anchor || ''}`}
+                target="_blank"
+                rel="noreferrer"
+                sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}
+              >
+                jump to source
+              </Typography>
+            )}
+          </Box>
+          <IconButton size="small" aria-label="delete" onClick={() => del.mutate()} disabled={del.isPending}>
+            <FontAwesomeIcon icon={faTrash} />
+          </IconButton>
+        </Stack>
+      </CardContent>
+    </Card>
+  )
+}
 
 const SearchView = (): React.ReactElement => {
   const { query, setQuery, mode } = useUi()

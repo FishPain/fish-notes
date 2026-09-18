@@ -10,13 +10,43 @@ interface Segment {
   origin: 'ai' | 'user'
   citations: number[]
 }
+interface Capture {
+  id: number
+  content: string
+  source: { url?: string; anchor?: string }
+}
 interface Canvas {
   id: number
   title: string
   doc: Segment[]
+  newSourceCount?: number
 }
 
-const SegmentBlock = ({ canvasId, segment }: { canvasId: number; segment: Segment }): React.ReactElement => {
+const sourceLabel = (c: Capture | undefined, id: number): string => {
+  if (!c) return `#${id}`
+  if (c.source.url) {
+    try {
+      return new URL(c.source.url).hostname.replace(/^www\./, '')
+    } catch {
+      // fall through to a content snippet
+    }
+  }
+  return c.content.slice(0, 24)
+}
+
+const openSource = (c: Capture | undefined): void => {
+  if (c?.source.url) window.open(`${c.source.url}${c.source.anchor || ''}`, '_blank')
+}
+
+const SegmentBlock = ({
+  canvasId,
+  segment,
+  captures
+}: {
+  canvasId: number
+  segment: Segment
+  captures: Map<number, Capture>
+}): React.ReactElement => {
   const qc = useQueryClient()
   const [editing, setEditing] = useState(false)
   const [text, setText] = useState(segment.text)
@@ -56,9 +86,19 @@ const SegmentBlock = ({ canvasId, segment }: { canvasId: number; segment: Segmen
         )}
         {segment.citations.length > 0 && (
           <Stack direction="row" spacing={0.5} sx={{ mt: 1, flexWrap: 'wrap' }}>
-            {segment.citations.map((id) => (
-              <Chip key={id} size="small" variant="outlined" label={`#${id}`} />
-            ))}
+            {segment.citations.map((id) => {
+              const c = captures.get(id)
+              return (
+                <Chip
+                  key={id}
+                  size="small"
+                  variant="outlined"
+                  clickable={!!c?.source.url}
+                  onClick={() => openSource(c)}
+                  label={sourceLabel(c, id)}
+                />
+              )
+            })}
           </Stack>
         )}
       </CardContent>
@@ -72,26 +112,38 @@ export const CanvasView = ({ canvasId }: { canvasId: number }): React.ReactEleme
 
   const canvas = useQuery({
     queryKey: ['canvas', canvasId],
-    queryFn: () => api.request<Canvas>(`/canvas/${canvasId}`)
+    queryFn: () => api.request<Canvas>(`/canvas/${canvasId}`),
+    refetchInterval: 5000 // keep the "new sources" nudge current as captures arrive
+  })
+  const captures = useQuery({
+    queryKey: ['captures'],
+    queryFn: () => api.request<Capture[]>('/capture')
   })
 
   const refresh = useMutation({
     mutationFn: () => api.request<{ doc: Segment[] }>(`/canvas/${canvasId}/collate`, { method: 'POST' }),
     onMutate: () => setError(''),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['canvas', canvasId] }),
-    onError: () => setError('Collate failed — is a model available? (Ollama running, or a Claude key set.)')
+    onError: () => setError('Collate failed — is a model available? (Check OPENAI_API_KEY / the proxy at localhost:6655.)')
   })
 
   if (!canvas.data) return <CircularProgress sx={{ m: 4 }} />
   const doc = canvas.data.doc
+  const captureMap = new Map((captures.data || []).map((c) => [c.id, c]))
+  const newCount = canvas.data.newSourceCount ?? 0
 
   return (
     <Box sx={{ flex: 1, p: 3, overflow: 'auto' }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
         <Typography variant="h5">{canvas.data.title}</Typography>
-        <Button variant="outlined" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
-          {refresh.isPending ? 'Collating…' : '↻ Refresh'}
-        </Button>
+        <Stack direction="row" spacing={1} alignItems="center">
+          {newCount > 0 && (
+            <Chip size="small" color="warning" label={`${newCount} new source${newCount === 1 ? '' : 's'}`} />
+          )}
+          <Button variant="outlined" onClick={() => refresh.mutate()} disabled={refresh.isPending}>
+            {refresh.isPending ? 'Collating…' : '↻ Refresh'}
+          </Button>
+        </Stack>
       </Stack>
 
       {error && <Typography color="error" variant="body2" sx={{ mb: 2 }}>{error}</Typography>}
@@ -103,7 +155,7 @@ export const CanvasView = ({ canvasId }: { canvasId: number }): React.ReactEleme
       )}
 
       {doc.map((segment) => (
-        <SegmentBlock key={segment.id} canvasId={canvasId} segment={segment} />
+        <SegmentBlock key={segment.id} canvasId={canvasId} segment={segment} captures={captureMap} />
       ))}
     </Box>
   )

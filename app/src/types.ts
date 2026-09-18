@@ -46,6 +46,7 @@ export interface Canvas {
   description: string
   doc: Segment[]
   updatedAt: string
+  collatedAt: string
 }
 
 // What the generator returns before validation/merge (no id/origin yet).

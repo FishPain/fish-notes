@@ -61,6 +61,14 @@ export const getCapture = (db: Database.Database, id: number): Capture | null =>
 export const listCaptures = (db: Database.Database): Capture[] =>
   (db.prepare('SELECT * FROM captures ORDER BY capturedAt DESC').all() as CaptureRow[]).map(rowToCapture)
 
+// Count captures added after the given ISO timestamp (empty = all captures).
+export const countCapturesSince = (db: Database.Database, iso: string): number => {
+  const row = db
+    .prepare('SELECT count(*) AS c FROM captures WHERE capturedAt > ?')
+    .get(iso || '') as { c: number }
+  return row.c
+}
+
 export const deleteCapture = (db: Database.Database, id: number): void => {
   db.prepare('DELETE FROM captures WHERE id = ?').run(id)
   db.prepare('DELETE FROM captures_fts WHERE capture_id = ?').run(id)

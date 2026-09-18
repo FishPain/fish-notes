@@ -3,7 +3,7 @@ import { Box } from '@mui/material'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
-import { marked } from 'marked'
+import { Markdown } from 'tiptap-markdown'
 
 export interface NoteEditorHandle {
   insertMarkdown: (md: string) => void
@@ -22,7 +22,11 @@ export const NoteEditor = React.forwardRef<
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const editor = useEditor({
-    extensions: [StarterKit, Link.configure({ openOnClick: true, autolink: true })],
+    extensions: [
+      StarterKit,
+      Link.configure({ openOnClick: true, autolink: true }),
+      Markdown.configure({ html: false, linkify: true })
+    ],
     content: (doc as object) || { type: 'doc', content: [] },
     onUpdate: ({ editor }) => {
       if (saveTimer.current) clearTimeout(saveTimer.current)
@@ -39,12 +43,9 @@ export const NoteEditor = React.forwardRef<
         const end = $from.end()
         onCommand(prompt).then((md) => {
           if (!editor) return
-          editor
-            .chain()
-            .focus()
-            .deleteRange({ from: start, to: end })
-            .insertContent(marked.parse(md, { async: false }) as string)
-            .run()
+          const chain = editor.chain().focus().deleteRange({ from: start, to: end })
+          if (md) chain.insertContent(md)
+          chain.run()
         })
         return true
       }
@@ -67,7 +68,7 @@ export const NoteEditor = React.forwardRef<
 
   React.useImperativeHandle(ref, () => ({
     insertMarkdown: (md: string) => {
-      editor?.chain().focus('end').insertContent(marked.parse(md, { async: false }) as string).run()
+      editor?.chain().focus('end').insertContent(md).run()
     }
   }))
 

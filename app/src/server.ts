@@ -1,6 +1,7 @@
 import express, { Application, Request, Response, NextFunction } from 'express'
 import Database from 'better-sqlite3'
 import { GenerateFn } from './ask.service.js'
+import { GenerateSegmentsFn } from './collate.service.js'
 import { errorHandler } from './utils/http-errors.js'
 import { routes } from './routes.js'
 
@@ -15,12 +16,17 @@ const cors = (_req: Request, res: Response, next: NextFunction): void => {
   next()
 }
 
-export const buildServer = (db: Database.Database, generate: GenerateFn, token: string): Application => {
+export const buildServer = (
+  db: Database.Database,
+  generate: GenerateFn,
+  token: string,
+  generateSegments: GenerateSegmentsFn
+): Application => {
   const app = express()
   app.use(cors)
   app.options('*', (_req, res) => res.sendStatus(204))
   app.use(express.json({ limit: '25mb' }))
-  routes(app, db, generate, token)
+  routes(app, db, generate, token, generateSegments)
   app.use(errorHandler)
   return app
 }

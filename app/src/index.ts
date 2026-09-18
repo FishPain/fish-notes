@@ -1,6 +1,7 @@
 import { SERVER, DB, AI } from './constants.js'
 import { openDb } from './db.js'
 import { makeGenerate } from './generator.js'
+import { makeSegmentGenerator } from './collate-generator.js'
 import { buildServer } from './server.js'
 
 // better-sqlite3's native addon is compiled for Node 24 (see app/.nvmrc); a
@@ -19,5 +20,5 @@ if (!SERVER.token) {
 }
 
 const db = openDb(DB.path)
-const app = buildServer(db, makeGenerate(AI), SERVER.token)
+const app = buildServer(db, makeGenerate(AI), SERVER.token, makeSegmentGenerator(AI))
 app.listen(SERVER.port, () => console.log(`engine on http://localhost:${SERVER.port}`))

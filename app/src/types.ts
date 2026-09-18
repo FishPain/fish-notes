@@ -31,3 +31,25 @@ export interface SearchResult {
   capture: Capture
   score: number
 }
+
+export interface Segment {
+  id: string
+  heading: string
+  text: string
+  origin: 'ai' | 'user'
+  citations: number[]
+}
+
+export interface Canvas {
+  id: number
+  title: string
+  doc: Segment[]
+  updatedAt: string
+}
+
+// What the generator returns before validation/merge (no id/origin yet).
+export interface RawSegment {
+  heading: string
+  text: string
+  citations: number[]
+}

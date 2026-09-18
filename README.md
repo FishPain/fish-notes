@@ -1,87 +1,42 @@
-# mynotes
+# Canvas Notes
 
-Capture a thought tied to a *specific* sentence, line, or region on any web page
-or screen — without altering the source — then find it again with normal and
-**AI/semantic search**.
+A search-first desktop app for turning everything you read at work into
+**self-organizing, grounded knowledge**. Capture passages from any web page or
+screen without altering the source; they join one searchable corpus; and each
+**canvas** (a topic you define) becomes a **living document** the app collates
+from your saved sources — with every claim cited back to what you captured.
 
-Instead of reinventing a note store, UI, and search engine, **mynotes stands on
-mature open source** and adds only the missing pieces:
+- **Capture anywhere** — select or box-draw on a page; it saves the content,
+  surrounding context, source URL, and a `#:~:text=` jump-back anchor.
+- **Search-first** — one bar to search your sources or **ask a question answered
+  only from what you saved**, with citations.
+- **Canvases = living documents** — the LLM drafts a working doc per topic from
+  the relevant captures. **AI text refreshes; text you edit locks as yours.**
+  Word-level provenance and inline citations (Google-Docs feel).
+- **Self-contained & private** — local SQLite corpus, local embeddings, your
+  choice of local (Ollama) or cloud (Claude) model. No server to run.
 
-- **[Joplin](https://github.com/laurent22/joplin)** (MIT) — local note store
-  (SQLite), desktop UI, tags, note links, full-text search, import/export, and a
-  browser Web Clipper. Its **Data API** (`localhost:41184`) is the capture
-  endpoint.
-- **[Jarvis](https://github.com/alondmnt/joplin-plugin-jarvis)** (Joplin plugin,
-  default) *or* **[Khoj](https://github.com/khoj-ai/khoj)** (AGPL, native Claude)
-  — semantic search + ask over your notes, local (Ollama) or cloud (Claude).
-- **mynotes (this repo, MIT)** — a small capturer that adds what the above lack:
-  a **box-draw / precise text capture** that records a `#:~:text=` **scroll-to
-  anchor** so you can jump back to the exact sentence, plus an optional
-  **screen-region OCR** helper for non-web sources. Everything POSTs into Joplin.
+> Status: in development. See the design in
+> [`docs/superpowers/specs`](./docs/superpowers/specs) and the build plan in
+> [`docs/superpowers/plans`](./docs/superpowers/plans).
 
-> Licensing note: mynotes is MIT. It *talks to* Khoj (AGPL) as a separate process
-> over HTTP and never bundles its code, so this repo stays MIT. Joplin and Jarvis
-> are MIT-compatible.
-
-## Status
-
-- **Phase 1 (adopt + configure):** works today with zero custom code — see Setup.
-- **Phase 2 (this repo's code):** the precise-anchor capturer + OCR helper. See
-  `docs/superpowers/plans/2026-09-18-adopt-and-gaps.md`.
-
-## Setup
-
-### 1. Joplin + Web Clipper
-
-1. Install Joplin desktop — `brew install --cask joplin` (macOS) or from
-   [joplinapp.org](https://joplinapp.org).
-2. Install the **Joplin Web Clipper** browser extension (linked from Joplin →
-   Options → Web Clipper).
-3. In Joplin → Options → Web Clipper, **enable** the service and copy the
-   **Authorization token**.
-4. Verify the Data API:
-   ```bash
-   curl -s "http://localhost:41184/ping"      # -> JoplinClipperServer
-   ```
-
-You can now clip selections/screenshots + source URL into local notes, and
-organise them with tags and note links.
-
-### 2. AI search + ask
-
-**Default — Jarvis (in-Joplin, lowest friction):**
-1. Joplin → Options → Plugins → install **Jarvis**.
-2. Configure a provider (Claude via a compatible endpoint, or **Ollama** for
-   fully local) + API key.
-3. Run Jarvis "update note database", then search/chat over your notes in Joplin.
-
-**Alternative — Khoj (native Claude, self-hosted):**
-1. Self-host Khoj (Docker or `pip install khoj`).
-2. Point Joplin's File-system sync (or a scheduled Markdown export) at a folder,
-   and add that folder as a Khoj markdown source.
-3. Enable Ollama and/or a Claude API key in Khoj; search/chat via Khoj's UI.
-
-### 3. (Optional) mynotes capturer — Phase 2
-
-Only needed if you want jump-to-exact-sentence anchors, box-draw regions, or
-screen OCR. Build/run instructions live in the Phase 2 plan.
-
-## How it fits together
+## How it works
 
 ```
-Browser / screen ──capture──▶ Joplin Data API (localhost:41184, token)
-                                     │
-                              Joplin (local SQLite, UI, search, export)
-                                     │
-                        Jarvis (in-app)  or  Khoj (semantic search + ask)
-                                     └── local Ollama / cloud Claude
+Browser / screen ──capture──▶ Electron app
+                                ├─ Corpus: SQLite (FTS5 + sqlite-vec embeddings)
+                                ├─ Retrieval: hybrid keyword + semantic
+                                ├─ Search + Ask: grounded answers with citations
+                                └─ Canvas: living document (TipTap) — AI spans
+                                   refresh, your edits lock, claims cite sources
+                                LLM via Vercel AI SDK → Claude or Ollama
 ```
 
-## Acknowledgements
+## Tech
 
-Built on [Joplin](https://github.com/laurent22/joplin) (MIT),
-[Khoj](https://github.com/khoj-ai/khoj) (AGPL-3.0), and
-[Jarvis](https://github.com/alondmnt/joplin-plugin-jarvis).
+Electron + React + TypeScript · MUI · TanStack Query · zustand · TipTap
+(ProseMirror) · better-sqlite3 + sqlite-vec + FTS5 · `@xenova/transformers`
+(local embeddings) · Vercel AI SDK (`@ai-sdk/anthropic` + Ollama) · vitest.
 
 ## License
 

@@ -1,7 +1,8 @@
 import Database from 'better-sqlite3'
 import * as sqliteVec from 'sqlite-vec'
+import { EMBEDDING } from './constants.js'
 
-const EMBED_DIM = 384
+const EMBED_DIM = EMBEDDING.dim
 
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS captures (

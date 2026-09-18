@@ -11,11 +11,22 @@ export const DB = {
   path: process.env.CANVAS_DB || 'canvas.db'
 }
 
+const AI_PROVIDER = (process.env.CANVAS_AI_PROVIDER || 'openai') as 'anthropic' | 'openai'
+const DEFAULT_MODEL = { anthropic: 'claude-sonnet-5', openai: 'gpt-5-mini' }
+const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || 'http://localhost:6655/openai/v1'
+
 export const AI = {
-  provider: (process.env.CANVAS_AI_PROVIDER || 'ollama') as 'anthropic' | 'ollama',
-  model:
-    process.env.CANVAS_AI_MODEL ||
-    (process.env.CANVAS_AI_PROVIDER === 'anthropic' ? 'claude-sonnet-5' : 'llama3.1'),
+  provider: AI_PROVIDER,
+  model: process.env.CANVAS_AI_MODEL || DEFAULT_MODEL[AI_PROVIDER],
   anthropicApiKey: process.env.ANTHROPIC_API_KEY,
-  ollamaBaseURL: process.env.OLLAMA_BASE_URL || 'http://localhost:11434/api'
+  openaiApiKey: process.env.OPENAI_API_KEY,
+  openaiBaseURL: OPENAI_BASE_URL
+}
+
+// Embeddings go through the same OpenAI-compatible proxy (no local model).
+export const EMBEDDING = {
+  baseUrl: OPENAI_BASE_URL,
+  apiKey: process.env.OPENAI_API_KEY,
+  model: process.env.CANVAS_EMBED_MODEL || 'text-embedding-3-small',
+  dim: Number(process.env.CANVAS_EMBED_DIM || 1536)
 }

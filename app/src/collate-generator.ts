@@ -1,15 +1,7 @@
 import { generateText } from 'ai'
-import { createAnthropic } from '@ai-sdk/anthropic'
-import { createOllama } from 'ollama-ai-provider'
+import { AiConfig, createModel } from './model.js'
 import { RawSegment } from './types.js'
 import { GenerateSegmentsFn } from './collate.service.js'
-
-interface AiConfig {
-  provider: 'anthropic' | 'ollama'
-  model: string
-  anthropicApiKey?: string
-  ollamaBaseURL: string
-}
 
 type TextFn = (prompt: string) => Promise<string>
 
@@ -53,11 +45,7 @@ export const makeSegmentGenerator = (ai: AiConfig, textFn?: TextFn): GenerateSeg
   const generate: TextFn =
     textFn ??
     (async (prompt: string) => {
-      const model =
-        ai.provider === 'anthropic'
-          ? createAnthropic({ apiKey: ai.anthropicApiKey })(ai.model)
-          : createOllama({ baseURL: ai.ollamaBaseURL })(ai.model)
-      const { text } = await generateText({ model, prompt })
+      const { text } = await generateText({ model: createModel(ai), prompt })
       return text
     })
 

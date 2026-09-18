@@ -19,6 +19,20 @@ describe('search.service', () => {
     db.close()
   })
 
+  it('keyword prefix-matches partial words (as-you-type)', async () => {
+    const db = await seed()
+    const r = keywordSearch(db, 'ferment', 10) // partial of "fermentation"
+    expect(r.map((x) => x.capture.content).join(' ')).toContain('fermentation')
+    db.close()
+  })
+
+  it('keyword stems word forms (porter tokenizer)', async () => {
+    const db = await seed()
+    const r = keywordSearch(db, 'runs', 10) // "runs" stems to match "runs after render"
+    expect(r.map((x) => x.capture.content).join(' ')).toContain('runs after render')
+    db.close()
+  })
+
   // Embeddings are stubbed deterministically in tests, so we assert semantic
   // search returns ranked results (its quality is validated live against the proxy).
   it('semantic search returns results', async () => {

@@ -13,10 +13,11 @@ const hydrate = (db: Database.Database, rows: { capture_id: number; score: numbe
 }
 
 // ponytail: FTS5 MATCH parses punctuation as query syntax, so a natural-language
-// question throws. Quote each word token and OR them for recall. Naive tokenizer,
-// swap for a real query parser if operators (AND/NEAR/prefix) are ever needed.
+// question throws. Quote each word token and OR them for recall. The trailing `*`
+// makes each token a prefix match ("embed" hits "embedding") for as-you-type search;
+// combined with the porter tokenizer's stemming this is plenty without a real parser.
 const toFtsQuery = (query: string): string =>
-  (query.match(/[\p{L}\p{N}]+/gu) || []).map((t) => `"${t}"`).join(' OR ')
+  (query.match(/[\p{L}\p{N}]+/gu) || []).map((t) => `"${t}"*`).join(' OR ')
 
 export const keywordSearch = (db: Database.Database, query: string, limit: number): SearchResult[] => {
   const match = toFtsQuery(query)

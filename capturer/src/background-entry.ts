@@ -16,15 +16,24 @@ const sender = async (payload: CapturePayload): Promise<void> => {
 
 const queue = makeQueue(chrome.storage.local, sender);
 
-const sendDoCapture = (tabId: number): void => {
-  chrome.tabs.sendMessage(tabId, { type: 'do-capture' }).catch(() => {
-    console.warn('Canvas Notes: cannot capture on this page (try a normal web page, and reload tabs opened before the extension).');
-  });
+const sendDoCapture = async (tabId: number): Promise<void> => {
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: 'do-capture' });
+  } catch {
+    // No content script in this tab (opened before the extension loaded, or the
+    // extension was just reloaded). Inject it on demand, then retry once.
+    try {
+      await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] });
+      await chrome.tabs.sendMessage(tabId, { type: 'do-capture' });
+    } catch {
+      console.warn('Canvas Notes: cannot capture on this page (restricted page like chrome://, PDF, or the Web Store).');
+    }
+  }
 };
 
 const triggerCapture = async (): Promise<void> => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (tab?.id) sendDoCapture(tab.id);
+  if (tab?.id) await sendDoCapture(tab.id);
 };
 
 chrome.runtime.onInstalled.addListener(() => {

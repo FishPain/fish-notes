@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Canvas Notes Capturer",
   "version": "0.1.0",
-  "permissions": ["storage", "contextMenus", "alarms"],
+  "permissions": ["storage", "contextMenus", "alarms", "activeTab", "scripting"],
   "host_permissions": ["http://localhost:7645/*"],
   "background": { "service_worker": "background.js" },
   "options_page": "options.html",

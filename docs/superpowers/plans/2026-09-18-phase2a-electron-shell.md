@@ -44,8 +44,10 @@ app/
 
 Add to `dependencies`: `"react": "^18.3.1"`, `"react-dom": "^18.3.1"`, `"@mui/material": "^5.16.0"`, `"@emotion/react": "^11.13.0"`, `"@emotion/styled": "^11.13.0"`, `"@tanstack/react-query": "^5.51.0"`, `"zustand": "^4.5.0"`.
 Add to `devDependencies`: `"electron": "^31.0.0"`, `"electron-vite": "^2.3.0"`, `"vite": "^5.3.0"`, `"@vitejs/plugin-react": "^4.3.0"`, `"@electron/rebuild": "^3.6.0"`, `"@types/react": "^18.3.0"`, `"@types/react-dom": "^18.3.0"`.
-Add scripts: `"dev": "electron-vite dev"`, `"build:app": "electron-vite build"`, `"rebuild": "electron-rebuild -f -w better-sqlite3"`, `"postinstall": "electron-rebuild -f -w better-sqlite3 || true"`.
-Keep existing `test`, `typecheck`, `start`.
+Add scripts: `"dev": "electron-vite dev"`, `"build:app": "electron-vite build"`, `"rebuild:electron": "electron-rebuild -f -w better-sqlite3"`, `"rebuild:node": "npm rebuild better-sqlite3"`.
+Keep existing `test`, `typecheck`, `start`. **Do NOT add a `postinstall` electron-rebuild.**
+
+> **Native-module ABI note (important):** `better-sqlite3` compiles against ONE ABI. The engine's `vitest`/`tsx` run on **Node 24** and need the **Node-ABI** build (`npm run rebuild:node`, which is the default after `npm install`). The **Electron app** needs the **Electron-ABI** build (`npm run rebuild:electron`). So: rebuild for Electron only right before `npm run dev`, and rebuild for Node before running tests again. Production packaging (Phase 3, electron-builder) does the Electron rebuild automatically. This plan keeps the **Node-ABI** build during all build/test tasks and only switches to Electron-ABI in the manual run step (Task 5).
 
 - [ ] **Step 2: Create `app/electron.vite.config.ts`**
 
@@ -64,10 +66,10 @@ export default defineConfig({
 })
 ```
 
-- [ ] **Step 3: Install + rebuild for Electron**
+- [ ] **Step 3: Install (keep Node-ABI so tests still pass)**
 
-Run: `cd app && npm install && npm run rebuild`
-Expected: install completes; `electron-rebuild` recompiles `better-sqlite3` against Electron's ABI (this is what lets SQLite load inside Electron; without it you get `NODE_MODULE_VERSION` errors at runtime). If rebuild fails, report BLOCKED with the exact error.
+Run: `cd app && npm install`
+Expected: install completes. `npm install` builds `better-sqlite3` for the current Node (24) — leave it there so the existing suite keeps passing. Do NOT run `rebuild:electron` here (that's only for launching the app in Task 5). Verify the suite is still green: `npx vitest run` → all pass (if better-sqlite3 fails to load with `NODE_MODULE_VERSION`, run `npm run rebuild:node` and retry).
 
 - [ ] **Step 4: Commit**
 
@@ -482,10 +484,10 @@ git commit -m "feat: react shell — search, ask, captures, token display"
 
 ## Task 5: Run + manual verification
 
-- [ ] **Step 1: Launch the app** (Node 24)
+- [ ] **Step 1: Rebuild for Electron, then launch the app** (Node 24)
 
-Run: `cd app && npm run dev`
-Expected: an Electron window opens showing "Canvas Notes"; the console logs `engine on http://127.0.0.1:7645`.
+Run: `cd app && npm run rebuild:electron && npm run dev`
+Expected: `electron-rebuild` recompiles `better-sqlite3` for Electron's ABI, then an Electron window opens showing "Canvas Notes"; the console logs `engine on http://127.0.0.1:7645`. (To run the test suite again afterward, first `npm run rebuild:node`.)
 
 - [ ] **Step 2: Verify corpus flows in the window**
   - The footer shows the extension token + endpoint.
@@ -498,10 +500,10 @@ Expected: an Electron window opens showing "Canvas Notes"; the console logs `eng
 - [ ] **Step 4: Confirm no Node-version dance**
   - The packaged path uses Electron's bundled Node + the rebuilt `better-sqlite3`, so end users won't need nvm. (Dev still uses Node 24 for `vitest`/`tsc`.)
 
-- [ ] **Step 5: Commit any fixes; run full suite + typecheck**
+- [ ] **Step 5: Back to Node-ABI, run full suite + typecheck, commit any fixes**
 
 ```bash
-cd app && npx vitest run && npx tsc --noEmit
+cd app && npm run rebuild:node && npx vitest run && npx tsc --noEmit
 git add -A && git commit -m "test: phase 2a shell green" # if needed
 ```
 

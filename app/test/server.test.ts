@@ -66,6 +66,16 @@ describe('server', () => {
     server.close()
   })
 
+  it('answers CORS preflight without a token and sets allow-origin', async () => {
+    const server = makeServer()
+    const { port } = server.address() as { port: number }
+    const res = await fetch(`http://localhost:${port}/capture`, { method: 'OPTIONS' })
+    expect(res.status).toBe(204)
+    expect(res.headers.get('access-control-allow-origin')).toBe('*')
+    expect((res.headers.get('access-control-allow-headers') || '').toLowerCase()).toContain('authorization')
+    server.close()
+  })
+
   it('deletes a capture by id', async () => {
     const server = makeServer()
     const { port } = server.address() as { port: number }

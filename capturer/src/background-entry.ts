@@ -16,9 +16,15 @@ const sender = async (payload: CapturePayload): Promise<void> => {
 
 const queue = makeQueue(chrome.storage.local, sender);
 
+const sendDoCapture = (tabId: number): void => {
+  chrome.tabs.sendMessage(tabId, { type: 'do-capture' }).catch(() => {
+    console.warn('Canvas Notes: cannot capture on this page (try a normal web page, and reload tabs opened before the extension).');
+  });
+};
+
 const triggerCapture = async (): Promise<void> => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (tab?.id) chrome.tabs.sendMessage(tab.id, { type: 'do-capture' });
+  if (tab?.id) sendDoCapture(tab.id);
 };
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -32,7 +38,7 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === 'capture-selection' && tab?.id) {
-    chrome.tabs.sendMessage(tab.id, { type: 'do-capture' });
+    sendDoCapture(tab.id);
   }
 });
 

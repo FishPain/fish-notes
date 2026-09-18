@@ -36,6 +36,7 @@ const ensureColumn = (db: Database.Database, table: string, column: string, ddl:
 const migrate = (db: Database.Database): void => {
   for (const statement of SCHEMA) db.prepare(statement).run()
   ensureColumn(db, 'canvases', 'description', "description TEXT NOT NULL DEFAULT ''")
+  ensureColumn(db, 'canvases', 'collatedAt', "collatedAt TEXT NOT NULL DEFAULT ''")
 }
 
 export const openDb = (path: string): Database.Database => {

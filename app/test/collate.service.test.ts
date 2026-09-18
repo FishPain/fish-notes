@@ -30,6 +30,7 @@ describe('collate', () => {
     expect(ai.heading).toBe('Overview')
     expect(ai.citations).toEqual([c1])
     expect(getCanvas(db, canvasId)!.doc.length).toBe(doc.length)
+    expect(getCanvas(db, canvasId)!.collatedAt).not.toBe('')
     db.close()
   })
 })

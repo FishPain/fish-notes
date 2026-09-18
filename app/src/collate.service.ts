@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3'
 import { randomUUID } from 'crypto'
 import { RawSegment, Segment } from './types.js'
-import { getCanvas, saveDoc } from './canvas.service.js'
+import { getCanvas, saveDoc, markCollated } from './canvas.service.js'
 import { hybridSearch } from './search.service.js'
 
 export type GenerateSegmentsFn = (
@@ -55,5 +55,6 @@ export const collate = async (
   }
 
   saveDoc(db, canvasId, doc)
+  markCollated(db, canvasId)
   return doc
 }

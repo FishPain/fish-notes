@@ -4,6 +4,7 @@ import Database from 'better-sqlite3'
 import { httpErrors, Reason, throwHttpError } from '../../utils/http-errors.js'
 import { asyncHandler } from '../../utils/async-handler.js'
 import { createCanvas, listCanvases, getCanvas, updateSegment } from '../../canvas.service.js'
+import { countCapturesSince } from '../../capture.service.js'
 import { collate, GenerateSegmentsFn } from '../../collate.service.js'
 
 const CreateSchema = object({ title: string().trim().required(), description: string().trim() })
@@ -33,7 +34,7 @@ export const canvasController = (db: Database.Database, generateSegments: Genera
       throwHttpError(httpErrors.notFound, Reason.NotFound, res)
       return
     }
-    res.json(canvas)
+    res.json({ ...canvas, newSourceCount: countCapturesSince(db, canvas.collatedAt) })
   })
 
   router.patch('/:id/segments/:segmentId', (req, res) => {

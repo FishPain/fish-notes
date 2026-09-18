@@ -16,4 +16,16 @@ describe('embed', () => {
     const b = await embed('same text')
     expect(a).toEqual(b)
   })
+
+  it('truncates over-long input before sending (avoids the 8192-token cap)', async () => {
+    const real = globalThis.fetch
+    let sentLen = 0
+    globalThis.fetch = (async (_url: unknown, init: { body: string }) => {
+      sentLen = JSON.parse(init.body).input.length
+      return { ok: true, json: async () => ({ data: [{ embedding: [0] }] }) }
+    }) as unknown as typeof fetch
+    await embed('x'.repeat(50000))
+    globalThis.fetch = real
+    expect(sentLen).toBeLessThanOrEqual(8000)
+  })
 })

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Node, mergeAttributes, InputRule } from '@tiptap/core'
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewProps } from '@tiptap/react'
 
@@ -10,6 +10,14 @@ const Badge = (props: NodeViewProps): React.ReactElement => {
   const { editor, node, getPos, extension } = props
   const [value, setValue] = useState('')
   const [busy, setBusy] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // ProseMirror keeps DOM focus on the doc right after inserting the node, so
+  // autoFocus loses the race. Grab focus once the editor has settled.
+  useEffect(() => {
+    const t = setTimeout(() => inputRef.current?.focus(), 0)
+    return () => clearTimeout(t)
+  }, [])
 
   const removeSelf = (): void => {
     const pos = getPos()
@@ -24,38 +32,48 @@ const Badge = (props: NodeViewProps): React.ReactElement => {
     const md = await (extension.options as LlmPromptOptions).onRun(instruction)
     const pos = getPos()
     if (typeof pos !== 'number') return
-    if (md) editor.chain().focus().insertContentAt({ from: pos, to: pos + node.nodeSize }, md).run()
-    else removeSelf()
+    if (md) {
+      editor.chain().focus().insertContentAt({ from: pos, to: pos + node.nodeSize }, md).run()
+      // insertContentAt selects the inserted range (the "blue block"); collapse it.
+      editor.commands.setTextSelection(editor.state.selection.to)
+    } else {
+      removeSelf()
+    }
   }
 
   return (
     <NodeViewWrapper
       as="div"
+      contentEditable={false}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
         gap: 6,
-        padding: '2px 8px',
+        padding: '3px 10px',
         margin: '4px 0',
-        borderRadius: 8,
-        background: 'rgba(120,140,255,.15)',
-        border: '1px solid rgba(120,140,255,.4)'
+        borderRadius: 999,
+        background: 'rgba(201,138,58,.16)',
+        border: '1px solid rgba(201,138,58,.5)'
       }}
     >
-      <span contentEditable={false} style={{ fontSize: 12, fontWeight: 600, color: '#8aa0ff' }}>
-        /llm
-      </span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: '#d9a05a' }}>/llm</span>
       <input
-        autoFocus
+        ref={inputRef}
         disabled={busy}
         placeholder="Ask AI to write here…"
         value={value}
         onChange={(e) => setValue(e.target.value)}
+        onBlur={() => {
+          if (!busy && !value.trim()) removeSelf()
+        }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault()
             run()
           } else if (e.key === 'Escape') {
+            e.preventDefault()
+            removeSelf()
+          } else if (e.key === 'Backspace' && !value) {
             e.preventDefault()
             removeSelf()
           }
@@ -69,11 +87,7 @@ const Badge = (props: NodeViewProps): React.ReactElement => {
           minWidth: 220
         }}
       />
-      {busy && (
-        <span contentEditable={false} style={{ fontSize: 12, opacity: 0.6 }}>
-          …
-        </span>
-      )}
+      {busy && <span style={{ fontSize: 12, opacity: 0.6 }}>…</span>}
     </NodeViewWrapper>
   )
 }

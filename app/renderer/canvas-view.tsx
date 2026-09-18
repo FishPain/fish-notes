@@ -87,20 +87,22 @@ export const CanvasView = ({ canvasId }: { canvasId: number }): React.ReactEleme
   const newCount = canvas.data.newSourceCount ?? 0
 
   return (
-    <Box sx={{ flex: 1, p: 3, overflow: 'auto' }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-        <Typography variant="h5">{canvas.data.title}</Typography>
-        {newCount > 0 && (
-          <Chip size="small" color="warning" label={`${newCount} new source${newCount === 1 ? '' : 's'} — use /llm to pull in`} />
-        )}
-      </Stack>
-      <Typography variant="caption" sx={{ opacity: 0.5, display: 'block', mb: 1 }}>
-        Type <b>/llm your instruction</b> then Enter to have AI write here from your sources.
-      </Typography>
+    <Box sx={{ flex: 1, overflow: 'auto', px: 4, py: 5 }}>
+      <Box sx={{ maxWidth: 720, mx: 'auto' }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+          <Typography variant="h4">{canvas.data.title}</Typography>
+          {newCount > 0 && (
+            <Chip size="small" color="warning" variant="outlined" label={`${newCount} new source${newCount === 1 ? '' : 's'} — use /llm to pull in`} />
+          )}
+        </Stack>
+        <Typography variant="caption" sx={{ opacity: 0.45, display: 'block', mb: 3 }}>
+          Type <b>/llm</b> then your instruction to have AI write here from your sources.
+        </Typography>
 
-      <NoteEditor key={canvasId} ref={editorRef} doc={canvas.data.doc} onChange={(d) => save.mutate(d)} onCommand={runComplete} />
+        <NoteEditor key={canvasId} ref={editorRef} doc={canvas.data.doc} onChange={(d) => save.mutate(d)} onCommand={runComplete} />
+      </Box>
 
-      <Dialog open={modal.open} onClose={() => closeWith('')} maxWidth="md" fullWidth>
+      <Dialog open={modal.open} onClose={() => closeWith('')} maxWidth="sm" fullWidth>
         <DialogTitle>{modal.title}</DialogTitle>
         <DialogContent dividers>
           {modal.loading ? (

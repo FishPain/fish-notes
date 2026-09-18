@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Box, List, ListItemButton, ListItemText, Typography, TextField, IconButton, Stack } from '@mui/material'
+import { Box, List, ListItemButton, ListItemText, Typography, TextField, IconButton, Stack, FormControlLabel, Checkbox } from '@mui/material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faPlus, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons'
@@ -12,10 +12,11 @@ interface CanvasSummary {
 }
 
 export const CanvasList = (): React.ReactElement => {
-  const { view, selectedCanvasId, openSearch, openCanvas } = useUi()
+  const { view, selectedCanvasId, openSearch, openCanvas, setPendingDraft } = useUi()
   const qc = useQueryClient()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [draftOnCreate, setDraftOnCreate] = useState(false)
 
   const canvases = useQuery({
     queryKey: ['canvases'],
@@ -29,6 +30,7 @@ export const CanvasList = (): React.ReactElement => {
       setTitle('')
       setDescription('')
       qc.invalidateQueries({ queryKey: ['canvases'] })
+      if (draftOnCreate) setPendingDraft(res.id)
       openCanvas(res.id)
     }
   })
@@ -77,6 +79,10 @@ export const CanvasList = (): React.ReactElement => {
           placeholder="Description (optional) — helps group sources"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
+        />
+        <FormControlLabel
+          control={<Checkbox size="small" checked={draftOnCreate} onChange={(e) => setDraftOnCreate(e.target.checked)} />}
+          label="Draft from sources"
         />
         <IconButton disabled={!title.trim()} onClick={submit} sx={{ alignSelf: 'flex-end' }}>
           <FontAwesomeIcon icon={faPlus} />

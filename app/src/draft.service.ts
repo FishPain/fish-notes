@@ -1,38 +1,39 @@
 import Database from 'better-sqlite3'
-import { RawSegment } from './types.js'
 import { getCanvas, markCollated } from './canvas.service.js'
 import { hybridSearch } from './search.service.js'
-
-export type GenerateSegmentsFn = (
-  topic: string,
-  sources: { id: number; content: string }[],
-  lockedText: string[]
-) => Promise<RawSegment[]>
+import { GenerateMarkdownFn, Source } from './markdown-generator.js'
 
 const RETRIEVE_K = 12
 
-// Retrieve relevant captures for the canvas topic and ask the generator for
-// grounded sections. Returns them for the editor to INSERT (nothing stored/merged).
-// Citations are filtered to retrieved captures (drop hallucinations).
+const sourcesFor = async (db: Database.Database, query: string): Promise<Source[]> => {
+  const hits = await hybridSearch(db, query, RETRIEVE_K)
+  return hits.map((h) => ({ id: h.capture.id, content: h.capture.content, url: h.capture.source.url }))
+}
+
+// One-time draft from the canvas topic (used at creation).
 export const draftFromSources = async (
   db: Database.Database,
   canvasId: number,
-  generateSegments: GenerateSegmentsFn
-): Promise<RawSegment[]> => {
+  generate: GenerateMarkdownFn
+): Promise<string> => {
   const canvas = getCanvas(db, canvasId)
-  if (!canvas) return []
-
+  if (!canvas) return ''
   const topic = [canvas.title, canvas.description].filter(Boolean).join(' — ')
-  const hits = await hybridSearch(db, topic, RETRIEVE_K)
-  const sources = hits.map((h) => ({ id: h.capture.id, content: h.capture.content }))
-  const allowed = new Set(sources.map((s) => s.id))
-
-  const raw = await generateSegments(topic, sources, [])
+  const md = await generate(`Write a concise brief on "${topic}".`, await sourcesFor(db, topic), '')
   markCollated(db, canvasId)
+  return md
+}
 
-  return raw.map((r) => ({
-    heading: r.heading,
-    text: r.text,
-    citations: [...new Set(r.citations.filter((id) => allowed.has(id)))]
-  }))
+// Inline /llm command: follow the user's prompt with the current doc as context.
+export const completeInline = async (
+  db: Database.Database,
+  canvasId: number,
+  prompt: string,
+  docContext: string,
+  generate: GenerateMarkdownFn
+): Promise<string> => {
+  const canvas = getCanvas(db, canvasId)
+  if (!canvas) return ''
+  const query = [prompt, canvas.title].filter(Boolean).join(' ')
+  return generate(prompt, await sourcesFor(db, query), docContext)
 }

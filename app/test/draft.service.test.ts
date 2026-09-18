@@ -2,23 +2,36 @@ import { describe, it, expect } from 'vitest'
 import { openDb } from '../src/db.js'
 import { insertCapture } from '../src/capture.service.js'
 import { createCanvas, getCanvas } from '../src/canvas.service.js'
-import { draftFromSources } from '../src/draft.service.js'
-import { RawSegment } from '../src/types.js'
+import { draftFromSources, completeInline } from '../src/draft.service.js'
+import { Source } from '../src/markdown-generator.js'
 
-describe('draftFromSources', () => {
-  it('returns grounded sections with hallucinated citations dropped, and stamps collatedAt', async () => {
+describe('draft.service', () => {
+  it('draftFromSources returns markdown from sources and stamps collatedAt', async () => {
     const db = openDb(':memory:')
-    const c1 = await insertCapture(db, { content: 'Kubernetes uses a flat pod network', source: { type: 'web' } })
-    const canvasId = createCanvas(db, 'Kubernetes')
+    await insertCapture(db, { content: 'Kubernetes uses a flat pod network', source: { type: 'web', url: 'https://k8s.io' } })
+    const id = createCanvas(db, 'Kubernetes')
+    const gen = async (instruction: string, sources: Source[]) => `# ${instruction}\n${sources.length} sources`
+    const md = await draftFromSources(db, id, gen)
+    expect(md).toContain('#')
+    expect(getCanvas(db, id)!.collatedAt).not.toBe('')
+    db.close()
+  })
 
-    const generateSegments = async (): Promise<RawSegment[]> => [
-      { heading: 'Overview', text: 'Pods share a flat network', citations: [c1, 999] }
-    ]
-
-    const sections = await draftFromSources(db, canvasId, generateSegments)
-    expect(sections[0].heading).toBe('Overview')
-    expect(sections[0].citations).toEqual([c1])
-    expect(getCanvas(db, canvasId)!.collatedAt).not.toBe('')
+  it('completeInline passes the prompt + doc context to the generator', async () => {
+    const db = openDb(':memory:')
+    await insertCapture(db, { content: 'pods share a network', source: { type: 'web' } })
+    const id = createCanvas(db, 'K')
+    let seenInstruction = ''
+    let seenCtx = ''
+    const gen = async (instruction: string, _s: Source[], ctx: string) => {
+      seenInstruction = instruction
+      seenCtx = ctx
+      return 'result md'
+    }
+    const md = await completeInline(db, id, 'summarise open questions', 'my current notes', gen)
+    expect(seenInstruction).toContain('summarise open questions')
+    expect(seenCtx).toBe('my current notes')
+    expect(md).toBe('result md')
     db.close()
   })
 })

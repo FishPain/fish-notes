@@ -1,4 +1,11 @@
-import 'dotenv/config'
+import { config } from 'dotenv'
+import { join } from 'node:path'
+
+// Dev / node engine: load .env from the working directory.
+config()
+// Packaged Electron: cwd has no .env, so load the copy bundled as an extra
+// resource (Resources/.env). dotenv won't override vars already set above.
+if (process.resourcesPath) config({ path: join(process.resourcesPath, '.env') })
 
 export const DEBUG = process.env.NODE_ENV === 'development'
 

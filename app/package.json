@@ -13,8 +13,29 @@
     "start": "npm run rebuild:node && tsx src/index.ts",
     "dev": "npm run rebuild:electron && electron-vite dev",
     "build:app": "electron-vite build",
+    "package": "npm run build:app && electron-builder --dir && npm run sign:adhoc",
+    "sign:adhoc": "codesign --force --deep --sign - 'dist/mac-arm64/Notes.app'",
     "rebuild:electron": "electron-rebuild -f -w better-sqlite3",
     "rebuild:node": "npm rebuild better-sqlite3"
+  },
+  "build": {
+    "appId": "com.fishpain.notes",
+    "productName": "Notes",
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/better-sqlite3/**",
+      "**/node_modules/sqlite-vec*/**"
+    ],
+    "extraResources": [
+      ".env"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "target": "dir",
+      "identity": null
+    }
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.0.0",
@@ -55,6 +76,7 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.0",
     "electron": "^31.0.0",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^2.3.0",
     "tsx": "^4.0.0",
     "typescript": "^5.4.0",

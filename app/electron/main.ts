@@ -7,10 +7,16 @@ import { makeMarkdownGenerator } from '../src/markdown-generator.js'
 import { AI } from '../src/constants.js'
 import { loadOrCreateToken } from './engine-token.js'
 
+// Electron derives userData from app.getName(), which otherwise falls back to the
+// package.json "name" (canvas-notes-engine). Set it so data lives under "Fish Notes".
+// Must run before the first app.getPath('userData') call.
+app.setName('Fish Notes')
+
 const PORT = 7645
 
 const startEngine = (token: string): void => {
   const dbPath = join(app.getPath('userData'), 'canvas.db')
+  console.log('db at', dbPath)
   const db = openDb(dbPath)
   const server = buildServer(db, makeGenerate(AI), token, makeMarkdownGenerator(AI))
   server.listen(PORT, '127.0.0.1', () => console.log(`engine on http://127.0.0.1:${PORT}`))

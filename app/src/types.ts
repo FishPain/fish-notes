@@ -1,5 +1,5 @@
 export interface CaptureSource {
-  type: 'web' | 'app'
+  type: 'web' | 'app' | 'screen'
   url?: string
   anchor?: string
   appName?: string

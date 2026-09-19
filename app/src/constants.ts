@@ -25,6 +25,9 @@ const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || 'http://localhost:6655/op
 export const AI = {
   provider: AI_PROVIDER,
   model: process.env.CANVAS_AI_MODEL || DEFAULT_MODEL[AI_PROVIDER],
+  // Screen-capture OCR uses a multimodal model via the proxy; default to a known
+  // vision-capable model, overridable if the proxy exposes a different one.
+  ocrModel: process.env.CANVAS_OCR_MODEL || 'gpt-4.1',
   anthropicApiKey: process.env.ANTHROPIC_API_KEY,
   openaiApiKey: process.env.OPENAI_API_KEY,
   openaiBaseURL: OPENAI_BASE_URL

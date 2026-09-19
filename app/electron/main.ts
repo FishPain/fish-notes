@@ -1,5 +1,7 @@
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, shell, ipcMain } from 'electron'
 import { join } from 'path'
+import { execFile } from 'node:child_process'
+import { readFile, rm } from 'node:fs/promises'
 import { openDb } from '../src/db.js'
 import { buildServer } from '../src/server.js'
 import { makeGenerate } from '../src/generator.js'
@@ -13,6 +15,24 @@ import { loadOrCreateToken } from './engine-token.js'
 app.setName('Fish Notes')
 
 const PORT = 7645
+
+// Native macOS interactive region screenshot → base64 PNG. Returns { cancelled }
+// if the user presses Esc (screencapture writes no file). No shell (arg array).
+const captureRegion = (): Promise<{ cancelled?: boolean; pngBase64?: string }> => {
+  const tmp = join(app.getPath('temp'), `fishnotes-${Date.now()}.png`)
+  return new Promise((resolve) => {
+    execFile('screencapture', ['-i', tmp], async (err) => {
+      if (err) return resolve({ cancelled: true })
+      try {
+        const png = await readFile(tmp)
+        await rm(tmp, { force: true })
+        resolve({ pngBase64: png.toString('base64') })
+      } catch {
+        resolve({ cancelled: true }) // no file → user cancelled selection
+      }
+    })
+  })
+}
 
 const startEngine = (token: string): void => {
   const dbPath = join(app.getPath('userData'), 'canvas.db')
@@ -56,6 +76,7 @@ const createWindow = (token: string): void => {
 
 app.whenReady().then(() => {
   const token = loadOrCreateToken(app.getPath('userData'))
+  ipcMain.handle('capture-region', captureRegion)
   startEngine(token)
   createWindow(token)
   app.on('activate', () => {

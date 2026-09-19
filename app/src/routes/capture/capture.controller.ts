@@ -4,6 +4,7 @@ import Database from 'better-sqlite3'
 import { httpErrors, Reason, throwHttpError } from '../../utils/http-errors.js'
 import { asyncHandler } from '../../utils/async-handler.js'
 import { insertCapture, listCaptures, deleteCapture } from '../../capture.service.js'
+import { ocrImage } from '../../ocr.js'
 import { CaptureInput } from '../../types.js'
 
 const CaptureSchema = object({
@@ -12,7 +13,7 @@ const CaptureSchema = object({
   note: string().trim(),
   // Keep url/anchor/etc. — without them here, stripUnknown drops the source location.
   source: object({
-    type: string().oneOf(['web', 'app']).required(),
+    type: string().oneOf(['web', 'app', 'screen']).required(),
     url: string(),
     anchor: string(),
     appName: string(),
@@ -22,6 +23,8 @@ const CaptureSchema = object({
   tags: array(string()),
   capturedAt: string()
 })
+
+const ScreenSchema = object({ pngBase64: string().required() })
 
 export const captureController = (db: Database.Database): Router => {
   const router = Router()
@@ -37,6 +40,33 @@ export const captureController = (db: Database.Database): Router => {
         return
       }
       const id = await insertCapture(db, body as unknown as CaptureInput)
+      res.status(201).json({ id })
+    })
+  )
+
+  // Screen-region capture: OCR the PNG via the proxy vision model, store as a capture.
+  router.post(
+    '/screen',
+    asyncHandler(async (req, res) => {
+      let body
+      try {
+        body = await ScreenSchema.validate(req.body, { abortEarly: true, stripUnknown: true })
+      } catch {
+        throwHttpError(httpErrors.badRequest, Reason.MissingOrInvalidFields, res)
+        return
+      }
+      const text = await ocrImage(body.pngBase64)
+      if (!text.trim()) {
+        throwHttpError(httpErrors.badRequest, Reason.MissingOrInvalidFields, res)
+        return
+      }
+      const id = await insertCapture(db, {
+        content: text,
+        source: { type: 'screen' },
+        screenshot: `data:image/png;base64,${body.pngBase64}`,
+        tags: [],
+        capturedAt: new Date().toISOString()
+      })
       res.status(201).json({ id })
     })
   )

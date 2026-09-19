@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Box, TextField, Typography, Card, CardContent, Button, Stack, Chip, IconButton, CircularProgress } from '@mui/material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faTrash } from '@fortawesome/free-solid-svg-icons'
+import { faTrash, faCamera } from '@fortawesome/free-solid-svg-icons'
 import { useUi } from './store.js'
 import { api } from './main.js'
 import { CanvasList } from './canvas-list.js'
@@ -14,6 +14,7 @@ interface Capture {
   note: string
   tags: string[]
   source: { url?: string; anchor?: string }
+  screenshot?: string | null
 }
 interface SearchHit {
   capture: Capture
@@ -64,6 +65,14 @@ const CaptureCard = ({ capture }: { capture: Capture }): React.ReactElement => {
                 jump to source
               </Typography>
             )}
+            {capture.screenshot && (
+              <Box
+                component="img"
+                src={capture.screenshot}
+                alt="captured region"
+                sx={{ display: 'block', maxHeight: 140, maxWidth: '100%', mt: 1, borderRadius: 1, border: 1, borderColor: 'divider' }}
+              />
+            )}
           </Box>
           <IconButton size="small" aria-label="delete" onClick={() => del.mutate()} disabled={del.isPending}>
             <FontAwesomeIcon icon={faTrash} />
@@ -76,8 +85,20 @@ const CaptureCard = ({ capture }: { capture: Capture }): React.ReactElement => {
 
 const SearchView = (): React.ReactElement => {
   const { query, setQuery } = useUi()
+  const qc = useQueryClient()
   const [asked, setAsked] = useState<AskResult | null>(null)
   const searching = query.trim().length > 0
+
+  // Grab a screen region (native selector via main), OCR it, store as a capture.
+  const captureMut = useMutation({
+    mutationFn: async () => {
+      const shot = await window.capture.region()
+      if (shot.cancelled || !shot.pngBase64) return null
+      return api.request('/capture/screen', { method: 'POST', body: JSON.stringify({ pngBase64: shot.pngBase64 }) })
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['captures'] }),
+    onError: () => window.alert('Could not read text from that selection — try a clearer region.')
+  })
 
   // Live search is traditional keyword (FTS) — fast, local, no embeddings — so it
   // can fire per keystroke. Embeddings are reserved for Ask (grounding the answer).
@@ -108,7 +129,18 @@ const SearchView = (): React.ReactElement => {
 
   return (
     <Box sx={{ flex: 1, overflow: 'auto', maxWidth: 900, mx: 'auto', p: 3 }}>
-      <Typography variant="h4" sx={{ mb: 2 }}>Notes</Typography>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+        <Typography variant="h4">Notes</Typography>
+        <Button
+          variant="outlined"
+          startIcon={captureMut.isPending ? <CircularProgress size={16} color="inherit" /> : <FontAwesomeIcon icon={faCamera} />}
+          onClick={() => captureMut.mutate()}
+          disabled={captureMut.isPending}
+          sx={{ textTransform: 'none' }}
+        >
+          {captureMut.isPending ? 'Reading text…' : 'Capture screen'}
+        </Button>
+      </Stack>
       <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
         <TextField
           fullWidth

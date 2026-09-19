@@ -19,7 +19,7 @@
   },
   "build": {
     "appId": "com.fishpain.fishnotes",
-    "productName": "fishnotes",
+    "productName": "Fish Notes",
     "afterPack": "build/after-pack.cjs",
     "asar": false,
     "extraResources": [

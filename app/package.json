@@ -13,14 +13,14 @@
     "start": "npm run rebuild:node && tsx src/index.ts",
     "dev": "npm run rebuild:electron && electron-vite dev",
     "build:app": "electron-vite build",
-    "package": "npm run build:app && electron-builder --dir && npm run sign:adhoc",
-    "sign:adhoc": "codesign --force --deep --sign - 'dist/mac-arm64/Notes.app'",
+    "package": "npm run build:app && electron-builder",
     "rebuild:electron": "electron-rebuild -f -w better-sqlite3",
     "rebuild:node": "npm rebuild better-sqlite3"
   },
   "build": {
-    "appId": "com.fishpain.notes",
-    "productName": "Notes",
+    "appId": "com.fishpain.fishnotes",
+    "productName": "fishnotes",
+    "afterPack": "build/after-pack.cjs",
     "asar": true,
     "asarUnpack": [
       "**/node_modules/better-sqlite3/**",
@@ -33,7 +33,7 @@
       "output": "dist"
     },
     "mac": {
-      "target": "dir",
+      "target": "dmg",
       "identity": null
     }
   },

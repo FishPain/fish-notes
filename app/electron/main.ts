@@ -22,12 +22,17 @@ const captureRegion = (): Promise<{ cancelled?: boolean; pngBase64?: string }> =
   const tmp = join(app.getPath('temp'), `fishnotes-${Date.now()}.png`)
   return new Promise((resolve) => {
     execFile('screencapture', ['-i', tmp], async (err) => {
-      if (err) return resolve({ cancelled: true })
+      if (err) {
+        console.error('capture-region: screencapture failed', err.message)
+        return resolve({ cancelled: true })
+      }
       try {
         const png = await readFile(tmp)
         await rm(tmp, { force: true })
+        console.log(`capture-region: captured ${Math.round(png.length / 1024)}kb`)
         resolve({ pngBase64: png.toString('base64') })
       } catch {
+        console.log('capture-region: no file (cancelled)')
         resolve({ cancelled: true }) // no file → user cancelled selection
       }
     })

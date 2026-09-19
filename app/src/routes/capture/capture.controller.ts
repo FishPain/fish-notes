@@ -55,6 +55,7 @@ export const captureController = (db: Database.Database): Router => {
         throwHttpError(httpErrors.badRequest, Reason.MissingOrInvalidFields, res)
         return
       }
+      console.log('capture/screen: received image, running OCR…')
       const text = await ocrImage(body.pngBase64)
       if (!text.trim()) {
         throwHttpError(httpErrors.badRequest, Reason.MissingOrInvalidFields, res)

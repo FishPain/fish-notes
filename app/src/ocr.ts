@@ -23,15 +23,28 @@ export const ocrImage = async (pngBase64: string): Promise<string> => {
       }
     ]
   })
+  console.log(`ocr: model=${AI.ocrModel} image=${Math.round(pngBase64.length / 1024)}kb`)
   for (let attempt = 0; ; attempt++) {
-    const res = await fetch(`${AI.openaiBaseURL}/chat/completions`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${AI.openaiApiKey}` },
-      body
-    })
+    // Abort a stalled request instead of hanging the UI forever.
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 90000)
+    let res: Response
+    try {
+      res = await fetch(`${AI.openaiBaseURL}/chat/completions`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${AI.openaiApiKey}` },
+        body,
+        signal: ctrl.signal
+      })
+    } finally {
+      clearTimeout(timer)
+    }
+    console.log(`ocr: status=${res.status}`)
     if (res.ok) {
       const data = (await res.json()) as { choices: { message: { content: string } }[] }
-      return (data.choices?.[0]?.message?.content ?? '').trim()
+      const out = (data.choices?.[0]?.message?.content ?? '').trim()
+      console.log(`ocr: got ${out.length} chars`)
+      return out
     }
     const text = await res.text()
     if (res.status === 429 && attempt < MAX_RETRIES) {

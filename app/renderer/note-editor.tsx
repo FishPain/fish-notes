@@ -5,6 +5,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import { Markdown } from 'tiptap-markdown'
 import { LlmPrompt } from './llm-prompt'
+import { Provenance } from './provenance'
 
 export interface NoteEditorHandle {
   insertMarkdown: (md: string) => void
@@ -21,7 +22,8 @@ export const NoteEditor = React.forwardRef<
       StarterKit,
       Link.configure({ openOnClick: true, autolink: true }),
       Markdown.configure({ html: false, linkify: true }),
-      LlmPrompt.configure({ onRun: onCommand })
+      LlmPrompt.configure({ onRun: onCommand }),
+      Provenance
     ],
     content: (doc as object) || { type: 'doc', content: [] },
     onUpdate: ({ editor }) => {
@@ -47,8 +49,12 @@ export const NoteEditor = React.forwardRef<
   React.useImperativeHandle(ref, () => ({
     insertMarkdown: (md: string) => {
       if (!editor) return
+      const from = editor.state.doc.content.size
       editor.chain().focus('end').insertContent(md).run()
-      editor.commands.setTextSelection(editor.state.doc.content.size)
+      const to = editor.state.doc.content.size
+      // Tag the inserted blocks as AI-authored (from-1 covers the case where the
+      // first block merged into a trailing empty paragraph). Collapse selection too.
+      editor.chain().markRangeAsAi(Math.max(1, from - 1), to).setTextSelection(to).run()
     }
   }))
 
@@ -68,7 +74,9 @@ export const NoteEditor = React.forwardRef<
         '& .ProseMirror pre': { bgcolor: 'rgba(255,255,255,.05)', p: 1.5, borderRadius: 1, overflow: 'auto' },
         '& .ProseMirror code': { bgcolor: 'rgba(255,255,255,.06)', px: 0.5, borderRadius: 0.5, fontSize: '.9em' },
         '& .ProseMirror a': { color: 'primary.light', cursor: 'pointer' },
-        '& .ProseMirror ::selection': { background: 'rgba(201,138,58,.28)' }
+        '& .ProseMirror ::selection': { background: 'rgba(201,138,58,.28)' },
+        // AI-authored blocks: a calm amber left bar (matches the /llm badge).
+        '& .ProseMirror [data-origin="ai"]': { borderLeft: '2px solid', borderColor: 'primary.main', pl: 1.5 }
       }}
     >
       <EditorContent editor={editor} />

@@ -34,8 +34,10 @@ const Badge = (props: NodeViewProps): React.ReactElement => {
     if (typeof pos !== 'number') return
     if (md) {
       editor.chain().focus().insertContentAt({ from: pos, to: pos + node.nodeSize }, md).run()
-      // insertContentAt selects the inserted range (the "blue block"); collapse it.
-      editor.commands.setTextSelection(editor.state.selection.to)
+      // Tag the inserted blocks as AI-authored, and collapse the selected range
+      // (insertContentAt leaves it selected — the "blue block").
+      const to = editor.state.selection.to
+      editor.chain().markRangeAsAi(pos, to).setTextSelection(to).run()
     } else {
       removeSelf()
     }

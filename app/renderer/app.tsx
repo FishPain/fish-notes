@@ -93,6 +93,12 @@ const SearchView = (): React.ReactElement => {
   const captureMut = useMutation({
     mutationFn: async () => {
       const shot = await window.capture.region()
+      if (shot.error === 'permission') {
+        window.alert(
+          'Fish Notes needs Screen Recording permission.\n\nI opened System Settings → Privacy & Security → Screen Recording. Enable Fish Notes (or "Electron" in dev), then fully quit and reopen the app and try again.'
+        )
+        return null
+      }
       if (shot.cancelled || !shot.pngBase64) return null
       return api.request('/capture/screen', { method: 'POST', body: JSON.stringify({ pngBase64: shot.pngBase64 }) })
     },

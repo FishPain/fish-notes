@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain } from 'electron'
+import { app, BrowserWindow, shell, ipcMain, systemPreferences } from 'electron'
 import { join } from 'path'
 import { execFile } from 'node:child_process'
 import { readFile, rm } from 'node:fs/promises'
@@ -16,14 +16,25 @@ app.setName('Fish Notes')
 
 const PORT = 7645
 
-// Native macOS interactive region screenshot → base64 PNG. Returns { cancelled }
-// if the user presses Esc (screencapture writes no file). No shell (arg array).
-const captureRegion = (): Promise<{ cancelled?: boolean; pngBase64?: string }> => {
+const SCREEN_SETTINGS = 'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'
+
+// Native macOS interactive region screenshot → base64 PNG.
+// - { cancelled } if the user presses Esc (no file written)
+// - { error: 'permission' } if Screen Recording permission is missing (the classic
+//   "could not create image from rect" failure) — we also open the settings pane.
+const captureRegion = (): Promise<{ cancelled?: boolean; pngBase64?: string; error?: string }> => {
   const tmp = join(app.getPath('temp'), `fishnotes-${Date.now()}.png`)
   return new Promise((resolve) => {
     execFile('screencapture', ['-i', tmp], async (err) => {
       if (err) {
         console.error('capture-region: screencapture failed', err.message)
+        // Attempting the capture registers the app in the Screen Recording list;
+        // if it's still not granted, guide the user there.
+        const granted = systemPreferences.getMediaAccessStatus('screen') === 'granted'
+        if (!granted) {
+          shell.openExternal(SCREEN_SETTINGS)
+          return resolve({ error: 'permission' })
+        }
         return resolve({ cancelled: true })
       }
       try {

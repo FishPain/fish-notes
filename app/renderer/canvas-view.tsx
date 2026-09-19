@@ -94,7 +94,7 @@ export const CanvasView = ({ canvasId }: { canvasId: number }): React.ReactEleme
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
           <Typography variant="h4">{canvas.data.title}</Typography>
           {newCount > 0 && (
-            <Chip size="small" color="warning" variant="outlined" label={`${newCount} new source${newCount === 1 ? '' : 's'} — use /llm to pull in`} />
+            <Chip size="small" color="warning" variant="outlined" label={`${newCount} new source${newCount === 1 ? '' : 's'} · /llm can add ${newCount === 1 ? 'it' : 'them'}`} />
           )}
         </Stack>
         <Typography variant="caption" sx={{ opacity: 0.45, display: 'block', mb: 3 }}>

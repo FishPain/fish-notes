@@ -1,5 +1,6 @@
 import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { Node as PMNode } from '@tiptap/pm/model'
 
 // Block-level provenance: which blocks were written by AI vs the human. AI-inserted
 // blocks carry origin='ai'; editing an AI block reclaims it (origin back to null).
@@ -10,6 +11,19 @@ const TAGGED_TYPES = new Set(['paragraph', 'heading', 'blockquote', 'codeBlock',
 // Transactions carrying this meta are our own attribute writes — the flip plugin
 // must ignore them, or it would recurse / undo the very tagging we just applied.
 const SKIP = 'provenanceSkip'
+
+// A node is "fully AI" if it's a tagged block with origin 'ai', or a container
+// (e.g. a list) whose every child is fully AI. Used by regeneration to remove only
+// AI content while leaving anything the human touched (which flipped to null) intact.
+export const isFullyAi = (node: PMNode): boolean => {
+  if (TAGGED_TYPES.has(node.type.name)) return node.attrs.origin === 'ai'
+  if (node.childCount === 0) return false
+  let all = true
+  node.forEach((child) => {
+    if (!isFullyAi(child)) all = false
+  })
+  return all
+}
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {

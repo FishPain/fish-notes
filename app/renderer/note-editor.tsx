@@ -5,10 +5,11 @@ import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import { Markdown } from 'tiptap-markdown'
 import { LlmPrompt } from './llm-prompt'
-import { Provenance } from './provenance'
+import { Provenance, isFullyAi } from './provenance'
 
 export interface NoteEditorHandle {
   insertMarkdown: (md: string) => void
+  replaceAiWith: (md: string) => void
 }
 
 export const NoteEditor = React.forwardRef<
@@ -55,6 +56,26 @@ export const NoteEditor = React.forwardRef<
       // Tag the inserted blocks as AI-authored (from-1 covers the case where the
       // first block merged into a trailing empty paragraph). Collapse selection too.
       editor.chain().markRangeAsAi(Math.max(1, from - 1), to).setTextSelection(to).run()
+    },
+    replaceAiWith: (md: string) => {
+      if (!editor) return
+      // Remove every top-level block that is wholly AI (human-edited blocks flipped
+      // to null and are skipped), then drop the fresh draft where the first one was.
+      const ranges: { from: number; to: number }[] = []
+      editor.state.doc.forEach((node, offset) => {
+        if (isFullyAi(node)) ranges.push({ from: offset, to: offset + node.nodeSize })
+      })
+      const insertAt = ranges.length ? ranges[0].from : editor.state.doc.content.size
+      if (ranges.length) {
+        let chain = editor.chain().focus()
+        // Delete descending so earlier ranges' positions stay valid.
+        for (let i = ranges.length - 1; i >= 0; i--) chain = chain.deleteRange(ranges[i])
+        chain.run()
+      }
+      const from = Math.min(insertAt, editor.state.doc.content.size)
+      editor.chain().focus().insertContentAt(from, md).run()
+      const to = editor.state.selection.to
+      editor.chain().markRangeAsAi(from, to).setTextSelection(to).run()
     }
   }))
 

@@ -4,6 +4,8 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button
 } from '@mui/material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faArrowsRotate } from '@fortawesome/free-solid-svg-icons'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { api } from './main.js'
@@ -62,6 +64,17 @@ export const CanvasView = ({ canvasId }: { canvasId: number }): React.ReactEleme
     setModal((m) => ({ ...m, open: false }))
   }
 
+  // Re-draft from sources and replace only the AI-authored blocks (your edits stay).
+  const regenerate = (): void => {
+    if (!window.confirm('Regenerate AI content? Your own edits stay; AI-written blocks are replaced.')) return
+    requestAi('Regenerate AI content', () =>
+      api.request<{ markdown: string }>(`/canvas/${canvasId}/draft`, { method: 'POST' }).then((r) => r.markdown)
+    ).then((md) => {
+      if (md) editorRef.current?.replaceAiWith(md)
+      qc.invalidateQueries({ queryKey: ['canvas', canvasId] })
+    })
+  }
+
   const runComplete = (prompt: string): Promise<string> =>
     requestAi('AI · /llm', () => {
       const docText = JSON.stringify(canvas.data?.doc ?? {})
@@ -93,9 +106,14 @@ export const CanvasView = ({ canvasId }: { canvasId: number }): React.ReactEleme
       <Box sx={{ maxWidth: 720, mx: 'auto' }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
           <Typography variant="h4">{canvas.data.title}</Typography>
-          {newCount > 0 && (
-            <Chip size="small" color="warning" variant="outlined" label={`${newCount} new source${newCount === 1 ? '' : 's'} · /llm can add ${newCount === 1 ? 'it' : 'them'}`} />
-          )}
+          <Stack direction="row" spacing={1} alignItems="center">
+            {newCount > 0 && (
+              <Chip size="small" color="warning" variant="outlined" label={`${newCount} new source${newCount === 1 ? '' : 's'} · /llm can add ${newCount === 1 ? 'it' : 'them'}`} />
+            )}
+            <Button size="small" variant="outlined" startIcon={<FontAwesomeIcon icon={faArrowsRotate} />} onClick={regenerate} sx={{ textTransform: 'none' }}>
+              Regenerate AI
+            </Button>
+          </Stack>
         </Stack>
         <Typography variant="caption" sx={{ opacity: 0.45, display: 'block', mb: 3 }}>
           Type <b>/llm</b> then your instruction to have AI write here from your sources.

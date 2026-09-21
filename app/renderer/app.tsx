@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { Box, TextField, Typography, Card, CardContent, Button, Stack, Chip, IconButton, CircularProgress } from '@mui/material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -89,22 +89,39 @@ const SearchView = (): React.ReactElement => {
   const [asked, setAsked] = useState<AskResult | null>(null)
   const searching = query.trim().length > 0
 
-  // Grab a screen region (native selector via main), OCR it, store as a capture.
-  const captureMut = useMutation({
-    mutationFn: async () => {
-      const shot = await window.capture.region()
-      if (shot.error === 'permission') {
-        window.alert(
-          'Fish Notes needs Screen Recording permission.\n\nI opened System Settings → Privacy & Security → Screen Recording. Enable Fish Notes (or "Electron" in dev), then fully quit and reopen the app and try again.'
-        )
-        return null
-      }
-      if (shot.cancelled || !shot.pngBase64) return null
-      return api.request('/capture/screen', { method: 'POST', body: JSON.stringify({ pngBase64: shot.pngBase64 }) })
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['captures'] }),
-    onError: () => window.alert('Could not read text from that selection — try a clearer region.')
-  })
+  // Screen capture is two phases: (1) pick a region — blocks briefly on the native
+  // selector; (2) OCR + store — runs in the background so you can capture the next
+  // one right away. Each in-flight OCR shows its own "reading…" card.
+  const [selecting, setSelecting] = useState(false)
+  const [ocrJobs, setOcrJobs] = useState<number[]>([])
+  const jobSeq = useRef(0)
+
+  const capture = async (): Promise<void> => {
+    setSelecting(true)
+    let shot: { cancelled?: boolean; pngBase64?: string; error?: string }
+    try {
+      shot = await window.capture.region()
+    } finally {
+      setSelecting(false)
+    }
+    if (shot.error === 'permission') {
+      window.alert(
+        'Fish Notes needs Screen Recording permission.\n\nI opened System Settings → Privacy & Security → Screen Recording. Enable Fish Notes (or "Electron" in dev), then fully quit and reopen the app and try again.'
+      )
+      return
+    }
+    if (shot.cancelled || !shot.pngBase64) return
+    const jobId = ++jobSeq.current
+    setOcrJobs((j) => [...j, jobId])
+    try {
+      await api.request('/capture/screen', { method: 'POST', body: JSON.stringify({ pngBase64: shot.pngBase64 }) })
+      qc.invalidateQueries({ queryKey: ['captures'] })
+    } catch {
+      window.alert('Could not read text from that screenshot — try a clearer region.')
+    } finally {
+      setOcrJobs((j) => j.filter((x) => x !== jobId))
+    }
+  }
 
   // Live search is traditional keyword (FTS) — fast, local, no embeddings — so it
   // can fire per keystroke. Embeddings are reserved for Ask (grounding the answer).
@@ -139,12 +156,12 @@ const SearchView = (): React.ReactElement => {
         <Typography variant="h4">Notes</Typography>
         <Button
           variant="outlined"
-          startIcon={captureMut.isPending ? <CircularProgress size={16} color="inherit" /> : <FontAwesomeIcon icon={faCamera} />}
-          onClick={() => captureMut.mutate()}
-          disabled={captureMut.isPending}
+          startIcon={selecting ? <CircularProgress size={16} color="inherit" /> : <FontAwesomeIcon icon={faCamera} />}
+          onClick={capture}
+          disabled={selecting}
           sx={{ textTransform: 'none' }}
         >
-          {captureMut.isPending ? 'Reading text…' : 'Capture screen'}
+          Capture screen{ocrJobs.length ? ` (${ocrJobs.length})` : ''}
         </Button>
       </Stack>
       <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
@@ -191,7 +208,18 @@ const SearchView = (): React.ReactElement => {
         {searching ? `Results (${shown.length})` : `All captures (${shown.length})`}
       </Typography>
 
-      {shown.length === 0 && (
+      {ocrJobs.map((id) => (
+        <Card key={`ocr-${id}`} sx={{ mb: 1 }}>
+          <CardContent>
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <CircularProgress size={18} />
+              <Typography variant="body2" sx={{ opacity: 0.7 }}>Reading text from screenshot…</Typography>
+            </Stack>
+          </CardContent>
+        </Card>
+      ))}
+
+      {shown.length === 0 && ocrJobs.length === 0 && (
         <Typography variant="body2" sx={{ opacity: 0.5 }}>
           {searching ? 'No matches.' : 'No captures yet — clip something with the extension.'}
         </Typography>

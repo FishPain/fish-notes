@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3'
 import { getCanvas } from './canvas.service.js'
 import { hybridSearch } from './search.service.js'
-import { GenerateMarkdownFn, Source } from './markdown-generator.js'
+import { GenerateMarkdownFn, Source } from './ai/markdown-generator.js'
 
 const RETRIEVE_K = 12
 

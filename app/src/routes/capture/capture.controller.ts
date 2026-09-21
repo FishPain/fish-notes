@@ -5,7 +5,7 @@ import { httpErrors, Reason, throwHttpError } from '../../utils/http-errors.js'
 import { asyncHandler } from '../../utils/async-handler.js'
 import { validateBody } from '../../utils/validate.js'
 import { insertCapture, listCaptures, deleteCapture } from '../../capture.service.js'
-import { ocrImage } from '../../ocr.js'
+import { ocrImage } from '../../ai/ocr.js'
 import { CaptureInput } from '../../types.js'
 
 const CaptureSchema = object({

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ocrImage } from '../src/ocr.js'
+import { ocrImage } from '../src/ai/ocr.js'
 
 describe('ocrImage', () => {
   it('sends the image and returns the model transcription (trimmed)', async () => {

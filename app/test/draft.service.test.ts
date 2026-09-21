@@ -3,7 +3,7 @@ import { openDb } from '../src/db.js'
 import { insertCapture } from '../src/capture.service.js'
 import { createCanvas } from '../src/canvas.service.js'
 import { draftFromSources, completeInline } from '../src/draft.service.js'
-import { Source } from '../src/markdown-generator.js'
+import { Source } from '../src/ai/markdown-generator.js'
 
 describe('draft.service', () => {
   it('draftFromSources returns markdown grounded in the note sources', async () => {

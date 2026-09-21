@@ -6,7 +6,7 @@ import { asyncHandler } from '../../utils/async-handler.js'
 import { validateBody } from '../../utils/validate.js'
 import { createCanvas, listCanvases, getCanvas, saveDoc, deleteCanvas } from '../../canvas.service.js'
 import { draftFromSources, completeInline } from '../../draft.service.js'
-import { GenerateMarkdownFn } from '../../markdown-generator.js'
+import { GenerateMarkdownFn } from '../../ai/markdown-generator.js'
 
 const CreateSchema = object({ title: string().trim().required(), description: string().trim() })
 

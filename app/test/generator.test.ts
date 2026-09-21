@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { makeGenerate } from '../src/generator.js'
+import { makeGenerate } from '../src/ai/generator.js'
 
 describe('makeGenerate', () => {
   it('returns a callable for the openai provider', () => {

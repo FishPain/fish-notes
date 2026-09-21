@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { makeMarkdownGenerator } from '../src/markdown-generator.js'
+import { makeMarkdownGenerator } from '../src/ai/markdown-generator.js'
 
 describe('makeMarkdownGenerator', () => {
   it('returns a callable for openai', () => {

@@ -1,7 +1,7 @@
 import express, { Application, Request, Response, NextFunction } from 'express'
 import Database from 'better-sqlite3'
 import { GenerateFn } from './ask.service.js'
-import { GenerateMarkdownFn } from './markdown-generator.js'
+import { GenerateMarkdownFn } from './ai/markdown-generator.js'
 import { errorHandler } from './utils/http-errors.js'
 import { routes } from './routes.js'
 

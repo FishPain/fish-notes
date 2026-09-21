@@ -1,7 +1,7 @@
 import { Application, Router } from 'express'
 import Database from 'better-sqlite3'
 import { GenerateFn } from './ask.service.js'
-import { GenerateMarkdownFn } from './markdown-generator.js'
+import { GenerateMarkdownFn } from './ai/markdown-generator.js'
 import { requireToken } from './middleware/require-token.js'
 import { captureController } from './routes/capture/capture.controller.js'
 import { searchController } from './routes/search/search.controller.js'

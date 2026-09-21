@@ -1,5 +1,5 @@
-import { AI } from './constants.js'
-import { proxyPost } from './ai/proxy.js'
+import { AI } from '../constants.js'
+import { proxyPost } from './proxy.js'
 
 const PROMPT =
   'Transcribe the content of this image as GitHub-Flavored Markdown. ' +

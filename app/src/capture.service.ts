@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3'
 import { DateTime } from 'luxon'
 import { Capture, CaptureInput } from './types.js'
-import { embed } from './embeddings.js'
+import { embed } from './ai/embeddings.js'
 
 interface CaptureRow {
   id: number

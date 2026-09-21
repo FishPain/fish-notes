@@ -1,5 +1,5 @@
-import { EMBEDDING } from './constants.js'
-import { proxyPost } from './ai/proxy.js'
+import { EMBEDDING } from '../constants.js'
+import { proxyPost } from './proxy.js'
 
 // The proxy caps embedding input at 8192 tokens. Captured context can be a whole
 // page section, so truncate to a safe char budget — a representative chunk is

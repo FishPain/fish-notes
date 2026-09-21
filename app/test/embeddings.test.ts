@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { embed } from '../src/embeddings.js'
+import { embed } from '../src/ai/embeddings.js'
 import { EMBEDDING } from '../src/constants.js'
 
 // The embeddings endpoint is stubbed deterministically in test/setup.ts, so this

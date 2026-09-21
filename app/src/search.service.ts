@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3'
 import { SearchResult } from './types.js'
 import { getCapture } from './capture.service.js'
-import { embed } from './embeddings.js'
+import { embed } from './ai/embeddings.js'
 
 const hydrate = (db: Database.Database, rows: { capture_id: number; score: number }[]): SearchResult[] => {
   const out: SearchResult[] = []

@@ -1,7 +1,7 @@
 import { SERVER, DB, AI } from './constants.js'
 import { openDb } from './db.js'
-import { makeGenerate } from './generator.js'
-import { makeMarkdownGenerator } from './markdown-generator.js'
+import { makeGenerate } from './ai/generator.js'
+import { makeMarkdownGenerator } from './ai/markdown-generator.js'
 import { buildServer } from './server.js'
 
 // better-sqlite3's native addon is compiled for Node 24 (see app/.nvmrc); a

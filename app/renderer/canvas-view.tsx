@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
-  Box, Typography, Chip, Stack, CircularProgress,
+  Box, Typography, Stack, CircularProgress,
   Dialog, DialogTitle, DialogContent, DialogActions, Button
 } from '@mui/material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -85,17 +85,11 @@ export const CanvasView = ({ canvasId }: { canvasId: number }): React.ReactEleme
   }, [pendingDraftId, canvasId, Boolean(canvas.data)])
 
   if (!canvas.data) return <CircularProgress sx={{ m: 4 }} />
-  const newCount = canvas.data.newSourceCount ?? 0
 
   return (
     <Box sx={{ flex: 1, overflow: 'auto', px: 4, py: 5 }}>
       <Box sx={{ maxWidth: 720, mx: 'auto' }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-          <Typography variant="h4">{canvas.data.title}</Typography>
-          {newCount > 0 && (
-            <Chip size="small" color="warning" variant="outlined" label={`${newCount} new source${newCount === 1 ? '' : 's'} · /llm can add ${newCount === 1 ? 'it' : 'them'}`} />
-          )}
-        </Stack>
+        <Typography variant="h4" sx={{ mb: 1 }}>{canvas.data.title}</Typography>
         <Typography variant="caption" sx={{ opacity: 0.45, display: 'block', mb: 3 }}>
           Type <b>/llm</b> then your instruction to have AI write here from your sources.
         </Typography>

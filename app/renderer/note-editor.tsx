@@ -12,7 +12,7 @@ export interface NoteEditorHandle {
 
 export const NoteEditor = React.forwardRef<
   NoteEditorHandle,
-  { doc: unknown; onChange: (doc: unknown) => void; onCommand: (prompt: string) => Promise<string> }
+  { doc: unknown; onChange: (doc: unknown) => void; onCommand: (prompt: string, context: string) => Promise<string> }
 >(({ doc, onChange, onCommand }, ref) => {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 

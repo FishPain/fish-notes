@@ -62,13 +62,12 @@ export const CanvasView = ({ canvasId }: { canvasId: number }): React.ReactEleme
     setModal((m) => ({ ...m, open: false }))
   }
 
-  const runComplete = (prompt: string): Promise<string> =>
-    requestAi('AI · /llm', () => {
-      const docText = JSON.stringify(canvas.data?.doc ?? {})
-      return api
-        .request<{ markdown: string }>(`/canvas/${canvasId}/complete`, { method: 'POST', body: JSON.stringify({ prompt, doc: docText }) })
+  const runComplete = (prompt: string, context: string): Promise<string> =>
+    requestAi('AI · /llm', () =>
+      api
+        .request<{ markdown: string }>(`/canvas/${canvasId}/complete`, { method: 'POST', body: JSON.stringify({ prompt, doc: context }) })
         .then((r) => r.markdown)
-    })
+    )
 
   // One-time draft when created with "draft from sources", shown in the modal too.
   // Gate on canvas.data (not editorRef): on a fresh create the editor isn't

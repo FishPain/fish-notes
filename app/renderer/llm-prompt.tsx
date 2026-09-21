@@ -3,7 +3,7 @@ import { Node, mergeAttributes, InputRule } from '@tiptap/core'
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewProps } from '@tiptap/react'
 
 export interface LlmPromptOptions {
-  onRun: (instruction: string) => Promise<string>
+  onRun: (instruction: string, context: string) => Promise<string>
 }
 
 const Badge = (props: NodeViewProps): React.ReactElement => {
@@ -25,11 +25,22 @@ const Badge = (props: NodeViewProps): React.ReactElement => {
     editor.chain().focus().deleteRange({ from: pos, to: pos + node.nodeSize }).run()
   }
 
+  // Readable text just before/after the badge, so the model can match the flow
+  // (continue prose vs. start a list) instead of guessing from opaque doc JSON.
+  const localContext = (): string => {
+    const p = getPos()
+    if (typeof p !== 'number') return ''
+    const doc = editor.state.doc
+    const before = doc.textBetween(Math.max(0, p - 1200), p, '\n', ' ').slice(-1000).trim()
+    const after = doc.textBetween(p + node.nodeSize, Math.min(doc.content.size, p + node.nodeSize + 600), '\n', ' ').trim()
+    return `TEXT BEFORE THE INSERTION POINT:\n${before || '(start of document)'}\n\nTEXT AFTER THE INSERTION POINT:\n${after || '(end of document)'}`
+  }
+
   const run = async (): Promise<void> => {
     const instruction = value.trim()
     if (!instruction) return removeSelf()
     setBusy(true)
-    const md = await (extension.options as LlmPromptOptions).onRun(instruction)
+    const md = await (extension.options as LlmPromptOptions).onRun(instruction, localContext())
     const pos = getPos()
     if (typeof pos !== 'number') return
     if (md) {

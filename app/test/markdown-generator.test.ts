@@ -19,4 +19,18 @@ describe('makeMarkdownGenerator', () => {
     expect(seen).toContain('https://k8s.io')
     expect(md).toContain('## Overview')
   })
+
+  it('inline mode: forbids questions and tells the model to match surrounding formatting', async () => {
+    let seen = ''
+    const fake = async (prompt: string) => {
+      seen = prompt
+      return 'ok'
+    }
+    const gen = makeMarkdownGenerator({ provider: 'openai', model: 'x', openaiApiKey: 'k', openaiBaseURL: 'http://x' }, fake)
+    const ctx = 'TEXT BEFORE THE INSERTION POINT:\nThe API returns JSON and\n\nTEXT AFTER THE INSERTION POINT:\n(end of document)'
+    await gen('continue this', [], ctx)
+    expect(seen).toContain('NEVER address the user or ask questions')
+    expect(seen).toContain('CONTINUE AS PROSE')
+    expect(seen).toContain('The API returns JSON and')
+  })
 })

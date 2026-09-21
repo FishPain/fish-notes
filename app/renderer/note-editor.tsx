@@ -5,11 +5,9 @@ import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import { Markdown } from 'tiptap-markdown'
 import { LlmPrompt } from './llm-prompt'
-import { Provenance, isFullyAi } from './provenance'
 
 export interface NoteEditorHandle {
   insertMarkdown: (md: string) => void
-  replaceAiWith: (md: string) => void
 }
 
 export const NoteEditor = React.forwardRef<
@@ -23,8 +21,7 @@ export const NoteEditor = React.forwardRef<
       StarterKit,
       Link.configure({ openOnClick: true, autolink: true }),
       Markdown.configure({ html: false, linkify: true }),
-      LlmPrompt.configure({ onRun: onCommand }),
-      Provenance
+      LlmPrompt.configure({ onRun: onCommand })
     ],
     content: (doc as object) || { type: 'doc', content: [] },
     onUpdate: ({ editor }) => {
@@ -50,32 +47,9 @@ export const NoteEditor = React.forwardRef<
   React.useImperativeHandle(ref, () => ({
     insertMarkdown: (md: string) => {
       if (!editor) return
-      const from = editor.state.doc.content.size
       editor.chain().focus('end').insertContent(md).run()
-      const to = editor.state.doc.content.size
-      // Tag the inserted blocks as AI-authored (from-1 covers the case where the
-      // first block merged into a trailing empty paragraph). Collapse selection too.
-      editor.chain().markRangeAsAi(Math.max(1, from - 1), to).setTextSelection(to).run()
-    },
-    replaceAiWith: (md: string) => {
-      if (!editor) return
-      // Remove every top-level block that is wholly AI (human-edited blocks flipped
-      // to null and are skipped), then drop the fresh draft where the first one was.
-      const ranges: { from: number; to: number }[] = []
-      editor.state.doc.forEach((node, offset) => {
-        if (isFullyAi(node)) ranges.push({ from: offset, to: offset + node.nodeSize })
-      })
-      const insertAt = ranges.length ? ranges[0].from : editor.state.doc.content.size
-      if (ranges.length) {
-        let chain = editor.chain().focus()
-        // Delete descending so earlier ranges' positions stay valid.
-        for (let i = ranges.length - 1; i >= 0; i--) chain = chain.deleteRange(ranges[i])
-        chain.run()
-      }
-      const from = Math.min(insertAt, editor.state.doc.content.size)
-      editor.chain().focus().insertContentAt(from, md).run()
-      const to = editor.state.selection.to
-      editor.chain().markRangeAsAi(from, to).setTextSelection(to).run()
+      // Collapse the selection so the freshly inserted text isn't left highlighted.
+      editor.commands.setTextSelection(editor.state.doc.content.size)
     }
   }))
 
@@ -95,9 +69,7 @@ export const NoteEditor = React.forwardRef<
         '& .ProseMirror pre': { bgcolor: 'rgba(255,255,255,.05)', p: 1.5, borderRadius: 1, overflow: 'auto' },
         '& .ProseMirror code': { bgcolor: 'rgba(255,255,255,.06)', px: 0.5, borderRadius: 0.5, fontSize: '.9em' },
         '& .ProseMirror a': { color: 'primary.light', cursor: 'pointer' },
-        '& .ProseMirror ::selection': { background: 'rgba(201,138,58,.28)' },
-        // AI-authored blocks: a calm amber left bar (matches the /llm badge).
-        '& .ProseMirror [data-origin="ai"]': { borderLeft: '2px solid', borderColor: 'primary.main', pl: 1.5 }
+        '& .ProseMirror ::selection': { background: 'rgba(201,138,58,.28)' }
       }}
     >
       <EditorContent editor={editor} />

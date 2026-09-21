@@ -2,9 +2,10 @@ import React, { useState } from 'react'
 import { Box, List, ListItem, ListItemButton, ListItemText, Typography, TextField, Button, IconButton, Stack, FormControlLabel, Checkbox, Popover } from '@mui/material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faPlus, faMagnifyingGlass, faTrash } from '@fortawesome/free-solid-svg-icons'
+import { faPlus, faMagnifyingGlass, faTrash, faGear } from '@fortawesome/free-solid-svg-icons'
 import { useUi } from './store.js'
 import { api } from './main.js'
+import { SettingsDialog } from './settings-dialog.js'
 
 interface CanvasSummary {
   id: number
@@ -15,6 +16,7 @@ export const CanvasList = (): React.ReactElement => {
   const { view, selectedCanvasId, openSearch, openCanvas, setPendingDraft } = useUi()
   const qc = useQueryClient()
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [draftOnCreate, setDraftOnCreate] = useState(false)
@@ -101,6 +103,13 @@ export const CanvasList = (): React.ReactElement => {
       >
         New note
       </Button>
+
+      <ListItemButton onClick={() => setSettingsOpen(true)} sx={{ borderRadius: 2, mt: 1, flexGrow: 0 }}>
+        <FontAwesomeIcon icon={faGear} style={{ opacity: 0.7 }} />
+        <ListItemText primary="Settings" sx={{ ml: 1.5 }} />
+      </ListItemButton>
+
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       <Popover
         open={Boolean(anchor)}

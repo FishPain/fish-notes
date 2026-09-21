@@ -21,3 +21,11 @@ contextBridge.exposeInMainWorld('capture', {
     return () => ipcRenderer.removeListener('capture-shortcut', listener)
   }
 })
+
+// AI/proxy configuration (persisted to userData/settings.json by main).
+contextBridge.exposeInMainWorld('settings', {
+  get: () => ipcRenderer.invoke('settings:get'),
+  save: (cfg: unknown) => ipcRenderer.invoke('settings:save', cfg),
+  test: (baseUrl: string, apiKey: string) => ipcRenderer.invoke('settings:test', { baseUrl, apiKey }),
+  relaunch: () => ipcRenderer.invoke('settings:relaunch')
+})

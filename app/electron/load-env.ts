@@ -1,12 +1,13 @@
 import { app } from 'electron'
 import { config } from 'dotenv'
 import { join } from 'node:path'
+import { readSettings } from './settings.js'
 
 // Imported FIRST by main.ts — before any engine module (constants.ts) evaluates —
 // so these vars win. Set the app name so userData resolves to ".../Fish Notes",
-// then load the user's key from userData/.env. We deliberately do NOT bundle .env
-// into the packaged app (that would ship the key); packaged users place their key
-// at ~/Library/Application Support/Fish Notes/.env. Dev still loads cwd/.env via
-// constants.ts (dotenv won't override what's already set here).
+// then apply config: the in-app Settings (userData/settings.json) is the primary
+// source; a userData/.env or cwd/.env act as fallbacks (dotenv won't override vars
+// already set here). We deliberately do NOT bundle .env into packaged builds.
 app.setName('Fish Notes')
+Object.assign(process.env, readSettings())
 config({ path: join(app.getPath('userData'), '.env') })

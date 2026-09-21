@@ -39,7 +39,20 @@ declare global {
       saveImage: (dataUrl: string, name: string) => Promise<{ saved?: boolean; path?: string; cancelled?: boolean }>
       onShortcut: (cb: () => void) => () => void
     }
+    settings: {
+      get: () => Promise<AiSettings>
+      save: (cfg: Partial<AiSettings>) => Promise<void>
+      test: (baseUrl: string, apiKey: string) => Promise<{ ok: boolean; count?: number; status?: number }>
+      relaunch: () => void
+    }
   }
+}
+
+export interface AiSettings {
+  baseUrl: string
+  apiKey: string
+  chatModel: string
+  ocrModel: string
 }
 
 const queryClient = new QueryClient()

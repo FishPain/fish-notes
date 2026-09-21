@@ -7,8 +7,9 @@ import { openDb } from '../src/db.js'
 import { buildServer } from '../src/server.js'
 import { makeGenerate } from '../src/generator.js'
 import { makeMarkdownGenerator } from '../src/markdown-generator.js'
-import { AI } from '../src/constants.js'
+import { AI, PROXY } from '../src/constants.js'
 import { loadOrCreateToken } from './engine-token.js'
+import { writeSettings } from './settings.js'
 
 const PORT = 7645
 
@@ -105,6 +106,38 @@ app.whenReady().then(() => {
   const token = loadOrCreateToken(app.getPath('userData'))
   ipcMain.handle('capture-region', captureRegion)
   ipcMain.handle('save-image', (_e, { dataUrl, name }: { dataUrl: string; name: string }) => saveImage(dataUrl, name))
+
+  // Settings: read effective config (defaults + env + saved), write overrides to
+  // userData/settings.json, test the proxy, and relaunch to apply.
+  ipcMain.handle('settings:get', () => ({
+    baseUrl: PROXY.baseUrl,
+    apiKey: PROXY.apiKey ?? '',
+    chatModel: AI.model,
+    ocrModel: AI.ocrModel
+  }))
+  ipcMain.handle('settings:save', (_e, cfg: { baseUrl?: string; apiKey?: string; chatModel?: string; ocrModel?: string }) => {
+    const map: Record<string, string> = {}
+    if (cfg.baseUrl !== undefined) map.OPENAI_BASE_URL = cfg.baseUrl
+    if (cfg.apiKey !== undefined) map.OPENAI_API_KEY = cfg.apiKey
+    if (cfg.chatModel !== undefined) map.CANVAS_AI_MODEL = cfg.chatModel
+    if (cfg.ocrModel !== undefined) map.CANVAS_OCR_MODEL = cfg.ocrModel
+    writeSettings(map)
+  })
+  ipcMain.handle('settings:test', async (_e, { baseUrl, apiKey }: { baseUrl: string; apiKey: string }) => {
+    try {
+      const res = await fetch(`${baseUrl}/models`, { headers: { authorization: `Bearer ${apiKey}` } })
+      if (!res.ok) return { ok: false, status: res.status }
+      const data = (await res.json()) as { data?: unknown[] }
+      return { ok: true, count: Array.isArray(data.data) ? data.data.length : 0 }
+    } catch {
+      return { ok: false, status: 0 }
+    }
+  })
+  ipcMain.handle('settings:relaunch', () => {
+    app.relaunch()
+    app.exit(0)
+  })
+
   startEngine(token)
   createWindow(token)
   // Global shortcut fires even when the app is unfocused; capture happens in the bg.

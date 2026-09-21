@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#241f1a"/>
+      <stop offset="1" stop-color="#15120f"/>
+    </linearGradient>
+    <radialGradient id="sheen" cx="0.3" cy="0.22" r="0.9">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.06"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="fish" x1="0.15" y1="0.08" x2="0.85" y2="0.95">
+      <stop offset="0" stop-color="#eaba6b"/>
+      <stop offset="1" stop-color="#c07f2a"/>
+    </linearGradient>
+    <clipPath id="body">
+      <path d="M742 512
+               C722 432 640 400 548 400
+               C486 400 438 428 412 468
+               L300 406 L372 512 L300 618 L412 556
+               C438 596 486 624 548 624
+               C640 624 722 592 742 512 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- macOS-style rounded square background -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#sheen)"/>
+
+  <!-- dorsal fin (behind body, generous overlap → no seam) -->
+  <path d="M470 402 C500 348 566 348 602 404 Z" fill="#b0731f"/>
+
+  <!-- fish body + tail: ONE continuous path (no internal seams) -->
+  <path d="M742 512
+           C722 432 640 400 548 400
+           C486 400 438 428 412 468
+           L300 406 L372 512 L300 618 L412 556
+           C438 596 486 624 548 624
+           C640 624 722 592 742 512 Z"
+        fill="url(#fish)"/>
+
+  <!-- notes element: ruled "text" lines across the body (clipped to the fish) -->
+  <g clip-path="url(#body)" fill="#1b1712" opacity="0.9">
+    <rect x="452" y="474" width="168" height="13" rx="6.5"/>
+    <rect x="452" y="506" width="150" height="13" rx="6.5"/>
+    <rect x="452" y="538" width="120" height="13" rx="6.5"/>
+  </g>
+
+  <!-- eye -->
+  <circle cx="672" cy="480" r="19" fill="#1b1712"/>
+</svg>

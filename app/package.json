@@ -13,6 +13,7 @@
     "start": "npm run rebuild:node && tsx src/index.ts",
     "dev": "npm run rebuild:electron && electron-vite dev",
     "build:app": "electron-vite build",
+    "icon": "bash scripts/make-icon.sh",
     "package": "npm run build:app && electron-builder",
     "rebuild:electron": "electron-rebuild -f -w better-sqlite3",
     "rebuild:node": "npm rebuild better-sqlite3"
@@ -30,7 +31,8 @@
     },
     "mac": {
       "target": "dmg",
-      "identity": null
+      "identity": null,
+      "icon": "build/icon.icns"
     }
   },
   "dependencies": {

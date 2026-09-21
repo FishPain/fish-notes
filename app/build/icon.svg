@@ -26,8 +26,8 @@
   <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
   <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#sheen)"/>
 
-  <!-- dorsal fin (behind body, generous overlap → no seam) -->
-  <path d="M470 402 C500 348 566 348 602 404 Z" fill="#b0731f"/>
+  <!-- dorsal fin (behind body, same gradient + deep overlap → reads as attached) -->
+  <path d="M486 430 C512 356 566 356 590 430 Z" fill="url(#fish)"/>
 
   <!-- fish body + tail: ONE continuous path (no internal seams) -->
   <path d="M742 512

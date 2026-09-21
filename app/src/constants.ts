@@ -16,7 +16,14 @@ export const DB = {
 
 const AI_PROVIDER = (process.env.CANVAS_AI_PROVIDER || 'openai') as 'anthropic' | 'openai'
 const DEFAULT_MODEL = { anthropic: 'claude-sonnet-5', openai: 'gpt-5-mini' }
-const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || 'http://localhost:6655/openai/v1'
+
+// The one OpenAI-compatible proxy endpoint. Chat/markdown go through the AI SDK
+// (model.ts, which reads AI.openaiBaseURL/openaiApiKey); embeddings + OCR use the
+// raw client in ai/proxy.ts, which reads PROXY.
+export const PROXY = {
+  baseUrl: process.env.OPENAI_BASE_URL || 'http://localhost:6655/openai/v1',
+  apiKey: process.env.OPENAI_API_KEY
+}
 
 export const AI = {
   provider: AI_PROVIDER,
@@ -25,14 +32,11 @@ export const AI = {
   // vision-capable model, overridable if the proxy exposes a different one.
   ocrModel: process.env.CANVAS_OCR_MODEL || 'gpt-4.1-mini',
   anthropicApiKey: process.env.ANTHROPIC_API_KEY,
-  openaiApiKey: process.env.OPENAI_API_KEY,
-  openaiBaseURL: OPENAI_BASE_URL
+  openaiApiKey: PROXY.apiKey,
+  openaiBaseURL: PROXY.baseUrl
 }
 
-// Embeddings go through the same OpenAI-compatible proxy (no local model).
 export const EMBEDDING = {
-  baseUrl: OPENAI_BASE_URL,
-  apiKey: process.env.OPENAI_API_KEY,
   model: process.env.CANVAS_EMBED_MODEL || 'text-embedding-3-small',
   dim: Number(process.env.CANVAS_EMBED_DIM || 1536)
 }

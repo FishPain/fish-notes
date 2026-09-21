@@ -3,6 +3,7 @@ import { object, string, array } from 'yup'
 import Database from 'better-sqlite3'
 import { httpErrors, Reason, throwHttpError } from '../../utils/http-errors.js'
 import { asyncHandler } from '../../utils/async-handler.js'
+import { validateBody } from '../../utils/validate.js'
 import { insertCapture, listCaptures, deleteCapture } from '../../capture.service.js'
 import { ocrImage } from '../../ocr.js'
 import { CaptureInput } from '../../types.js'
@@ -32,13 +33,8 @@ export const captureController = (db: Database.Database): Router => {
   router.post(
     '/',
     asyncHandler(async (req, res) => {
-      let body
-      try {
-        body = await CaptureSchema.validate(req.body, { abortEarly: true, stripUnknown: true })
-      } catch {
-        throwHttpError(httpErrors.badRequest, Reason.MissingOrInvalidFields, res)
-        return
-      }
+      const body = await validateBody(CaptureSchema, req.body, res)
+      if (!body) return
       const id = await insertCapture(db, body as unknown as CaptureInput)
       res.status(201).json({ id })
     })
@@ -48,14 +44,8 @@ export const captureController = (db: Database.Database): Router => {
   router.post(
     '/screen',
     asyncHandler(async (req, res) => {
-      let body
-      try {
-        body = await ScreenSchema.validate(req.body, { abortEarly: true, stripUnknown: true })
-      } catch {
-        throwHttpError(httpErrors.badRequest, Reason.MissingOrInvalidFields, res)
-        return
-      }
-      console.log('capture/screen: received image, running OCR…')
+      const body = await validateBody(ScreenSchema, req.body, res)
+      if (!body) return
       const text = await ocrImage(body.pngBase64)
       if (!text.trim()) {
         throwHttpError(httpErrors.badRequest, Reason.MissingOrInvalidFields, res)

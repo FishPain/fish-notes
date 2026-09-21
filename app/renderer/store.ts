@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { api } from './engine.js'
 
 let jobSeq = 0
 
@@ -50,12 +51,7 @@ export const useUi = create<UiState>((set, get) => ({
     const id = ++jobSeq
     set((s) => ({ ocrJobs: [...s.ocrJobs, id] }))
     try {
-      const res = await fetch(`${window.engine.baseUrl}/capture/screen`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${window.engine.token}` },
-        body: JSON.stringify({ pngBase64: shot.pngBase64 })
-      })
-      if (!res.ok) throw new Error(`screen capture ${res.status}`)
+      await api.request('/capture/screen', { method: 'POST', body: JSON.stringify({ pngBase64: shot.pngBase64 }) })
     } catch {
       window.alert('Could not read text from that screenshot — try a clearer region.')
     } finally {

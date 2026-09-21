@@ -6,7 +6,8 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { api } from './main.js'
+import { api } from './engine.js'
+import { proseSx } from './prose.js'
 import { useUi } from './store.js'
 import { NoteEditor, NoteEditorHandle } from './note-editor.js'
 
@@ -105,7 +106,7 @@ export const CanvasView = ({ canvasId }: { canvasId: number }): React.ReactEleme
               <Typography variant="body2" sx={{ opacity: 0.7 }}>Generating from your sources…</Typography>
             </Stack>
           ) : (
-            <Box sx={{ '& a': { color: 'primary.light' }, '& pre': { p: 1, bgcolor: 'rgba(255,255,255,.06)', borderRadius: 1, overflow: 'auto' }, lineHeight: 1.6 }}>
+            <Box sx={{ lineHeight: 1.6, ...proseSx }}>
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{modal.markdown}</ReactMarkdown>
             </Box>
           )}

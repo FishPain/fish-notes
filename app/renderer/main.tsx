@@ -2,8 +2,11 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Box, Button, CssBaseline, ThemeProvider, Typography, createTheme } from '@mui/material'
-import { makeApiClient } from './api-client.js'
 import { App } from './app.js'
+
+// Re-exported so existing imports (`import { api } from './main.js'`) keep working;
+// the client itself lives in engine.ts to avoid an import cycle with the store.
+export { api } from './engine.js'
 
 // Without this, any render-time throw unmounts React to a blank white screen
 // (common with HMR mid-edit). Show the error + a reload button instead.
@@ -39,7 +42,6 @@ declare global {
   }
 }
 
-export const api = makeApiClient(window.engine)
 const queryClient = new QueryClient()
 
 const serif = "'Iowan Old Style', 'Palatino', Georgia, serif"

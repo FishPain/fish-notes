@@ -6,7 +6,9 @@ import { faTrash, faCamera, faDownload } from '@fortawesome/free-solid-svg-icons
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useUi } from './store.js'
-import { api } from './main.js'
+import { api } from './engine.js'
+import { proseSx } from './prose.js'
+import { StatusCard } from './status-card.js'
 import { CanvasList } from './canvas-list.js'
 import { CanvasView } from './canvas-view.js'
 
@@ -43,18 +45,7 @@ const CaptureCard = ({ capture }: { capture: Capture }): React.ReactElement => {
         <Stack direction="row" alignItems="flex-start" spacing={1}>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             {capture.source.type === 'screen' ? (
-              <Box
-                sx={{
-                  overflowX: 'auto',
-                  '& table': { borderCollapse: 'collapse', my: 1 },
-                  '& th, & td': { border: '1px solid', borderColor: 'divider', px: 1, py: 0.5, textAlign: 'left' },
-                  '& th': { bgcolor: 'rgba(255,255,255,.04)' },
-                  '& pre': { bgcolor: 'rgba(255,255,255,.05)', p: 1, borderRadius: 1, overflow: 'auto' },
-                  '& code': { bgcolor: 'rgba(255,255,255,.06)', px: 0.5, borderRadius: 0.5 },
-                  '& p': { my: 0.5 },
-                  '& a': { color: 'primary.light' }
-                }}
-              >
+              <Box sx={{ overflowX: 'auto', ...proseSx }}>
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{capture.content}</ReactMarkdown>
               </Box>
             ) : (
@@ -182,16 +173,7 @@ const SearchView = (): React.ReactElement => {
         </Button>
       </Stack>
 
-      {askMut.isPending && (
-        <Card sx={{ mb: 2, bgcolor: 'rgba(201,138,58,.08)' }}>
-          <CardContent>
-            <Stack direction="row" spacing={1.5} alignItems="center">
-              <CircularProgress size={18} />
-              <Typography variant="body2" sx={{ opacity: 0.7 }}>Thinking…</Typography>
-            </Stack>
-          </CardContent>
-        </Card>
-      )}
+      {askMut.isPending && <StatusCard label="Thinking…" />}
 
       {asked && !askMut.isPending && (
         <Card sx={{ mb: 2, bgcolor: 'rgba(201,138,58,.08)' }}>
@@ -212,14 +194,7 @@ const SearchView = (): React.ReactElement => {
       </Typography>
 
       {ocrJobs.map((id) => (
-        <Card key={`ocr-${id}`} sx={{ mb: 1 }}>
-          <CardContent>
-            <Stack direction="row" spacing={1.5} alignItems="center">
-              <CircularProgress size={18} />
-              <Typography variant="body2" sx={{ opacity: 0.7 }}>Reading text from screenshot…</Typography>
-            </Stack>
-          </CardContent>
-        </Card>
+        <StatusCard key={`ocr-${id}`} label="Reading text from screenshot…" />
       ))}
 
       {shown.length === 0 && ocrJobs.length === 0 && (

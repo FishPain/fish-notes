@@ -23,9 +23,6 @@
     "productName": "Fish Notes",
     "afterPack": "build/after-pack.cjs",
     "asar": false,
-    "extraResources": [
-      ".env"
-    ],
     "directories": {
       "output": "dist"
     },

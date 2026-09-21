@@ -8,6 +8,7 @@ out/
 .DS_Store
 .env
 .env.*
+!.env.example
 .superpowers/
 capturer/extension/content.js
 capturer/extension/background.js

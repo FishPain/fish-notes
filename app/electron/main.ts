@@ -1,3 +1,4 @@
+import './load-env.js' // must be first: sets app name + loads userData/.env before constants.ts
 import { app, BrowserWindow, shell, ipcMain, systemPreferences, globalShortcut, dialog } from 'electron'
 import { join } from 'path'
 import { execFile } from 'node:child_process'
@@ -8,11 +9,6 @@ import { makeGenerate } from '../src/generator.js'
 import { makeMarkdownGenerator } from '../src/markdown-generator.js'
 import { AI } from '../src/constants.js'
 import { loadOrCreateToken } from './engine-token.js'
-
-// Electron derives userData from app.getName(), which otherwise falls back to the
-// package.json "name" (canvas-notes-engine). Set it so data lives under "Fish Notes".
-// Must run before the first app.getPath('userData') call.
-app.setName('Fish Notes')
 
 const PORT = 7645
 

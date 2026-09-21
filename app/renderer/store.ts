@@ -1,23 +1,65 @@
 import { create } from 'zustand'
 
+let jobSeq = 0
+
 interface UiState {
   query: string
   view: 'search' | 'canvas'
   selectedCanvasId: number | null
   pendingDraftId: number | null
+  selecting: boolean // native region selector is open (button disabled)
+  ocrJobs: number[] // in-flight OCR jobs (each renders a "reading…" card)
   setQuery: (query: string) => void
   setPendingDraft: (id: number | null) => void
   openSearch: () => void
   openCanvas: (id: number) => void
+  captureScreen: () => Promise<void>
 }
 
-export const useUi = create<UiState>((set) => ({
+export const useUi = create<UiState>((set, get) => ({
   query: '',
   view: 'search',
   selectedCanvasId: null,
   pendingDraftId: null,
+  selecting: false,
+  ocrJobs: [],
   setQuery: (query) => set({ query }),
   setPendingDraft: (id) => set({ pendingDraftId: id }),
   openSearch: () => set({ view: 'search', selectedCanvasId: null }),
-  openCanvas: (id) => set({ view: 'canvas', selectedCanvasId: id })
+  openCanvas: (id) => set({ view: 'canvas', selectedCanvasId: id }),
+
+  // Shared by the "Capture screen" button and the global shortcut. Phase 1 (region
+  // select) blocks briefly; phase 2 (OCR + store) runs in the background so you can
+  // capture the next one immediately. Uses window.engine directly (no query client).
+  captureScreen: async () => {
+    if (get().selecting) return // don't open two selectors at once
+    set({ selecting: true })
+    let shot: { cancelled?: boolean; pngBase64?: string; error?: string }
+    try {
+      shot = await window.capture.region()
+    } finally {
+      set({ selecting: false })
+    }
+    if (shot.error === 'permission') {
+      window.alert(
+        'Fish Notes needs Screen Recording permission.\n\nI opened System Settings → Privacy & Security → Screen Recording. Enable Fish Notes (or "Electron" in dev), then fully quit and reopen the app and try again.'
+      )
+      return
+    }
+    if (shot.cancelled || !shot.pngBase64) return
+    const id = ++jobSeq
+    set((s) => ({ ocrJobs: [...s.ocrJobs, id] }))
+    try {
+      const res = await fetch(`${window.engine.baseUrl}/capture/screen`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${window.engine.token}` },
+        body: JSON.stringify({ pngBase64: shot.pngBase64 })
+      })
+      if (!res.ok) throw new Error(`screen capture ${res.status}`)
+    } catch {
+      window.alert('Could not read text from that screenshot — try a clearer region.')
+    } finally {
+      set((s) => ({ ocrJobs: s.ocrJobs.filter((x) => x !== id) }))
+    }
+  }
 }))

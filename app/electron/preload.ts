@@ -13,5 +13,11 @@ contextBridge.exposeInMainWorld('engine', {
 
 // Native screen-region capture (main runs macOS `screencapture`).
 contextBridge.exposeInMainWorld('capture', {
-  region: () => ipcRenderer.invoke('capture-region')
+  region: () => ipcRenderer.invoke('capture-region'),
+  saveImage: (dataUrl: string, name: string) => ipcRenderer.invoke('save-image', { dataUrl, name }),
+  onShortcut: (cb: () => void) => {
+    const listener = (): void => cb()
+    ipcRenderer.on('capture-shortcut', listener)
+    return () => ipcRenderer.removeListener('capture-shortcut', listener)
+  }
 })

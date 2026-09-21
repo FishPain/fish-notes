@@ -1,7 +1,7 @@
-import { app, BrowserWindow, shell, ipcMain, systemPreferences } from 'electron'
+import { app, BrowserWindow, shell, ipcMain, systemPreferences, globalShortcut, dialog } from 'electron'
 import { join } from 'path'
 import { execFile } from 'node:child_process'
-import { readFile, rm } from 'node:fs/promises'
+import { readFile, writeFile, rm } from 'node:fs/promises'
 import { openDb } from '../src/db.js'
 import { buildServer } from '../src/server.js'
 import { makeGenerate } from '../src/generator.js'
@@ -50,6 +50,20 @@ const captureRegion = (): Promise<{ cancelled?: boolean; pngBase64?: string; err
   })
 }
 
+const SHORTCUT = 'CommandOrControl+Shift+9'
+let mainWindow: BrowserWindow | null = null
+
+// Save a data-URL PNG to a user-chosen path and reveal it in Finder. Screenshots
+// live as base64 in the DB (no per-file location), so "export" writes one out.
+const saveImage = async (dataUrl: string, name: string): Promise<{ saved?: boolean; path?: string; cancelled?: boolean }> => {
+  const res = await dialog.showSaveDialog({ defaultPath: name || 'capture.png', filters: [{ name: 'PNG', extensions: ['png'] }] })
+  if (res.canceled || !res.filePath) return { cancelled: true }
+  const base64 = String(dataUrl).replace(/^data:image\/\w+;base64,/, '')
+  await writeFile(res.filePath, Buffer.from(base64, 'base64'))
+  shell.showItemInFolder(res.filePath)
+  return { saved: true, path: res.filePath }
+}
+
 const startEngine = (token: string): void => {
   const dbPath = join(app.getPath('userData'), 'canvas.db')
   console.log('db at', dbPath)
@@ -69,6 +83,7 @@ const createWindow = (token: string): void => {
       additionalArguments: [`--engine-token=${token}`, `--engine-port=${PORT}`]
     }
   })
+  mainWindow = win
   // Open source links in the user's real browser, never inside the app window.
   const appUrl = process.env.ELECTRON_RENDERER_URL || ''
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -93,12 +108,19 @@ const createWindow = (token: string): void => {
 app.whenReady().then(() => {
   const token = loadOrCreateToken(app.getPath('userData'))
   ipcMain.handle('capture-region', captureRegion)
+  ipcMain.handle('save-image', (_e, { dataUrl, name }: { dataUrl: string; name: string }) => saveImage(dataUrl, name))
   startEngine(token)
   createWindow(token)
+  // Global shortcut fires even when the app is unfocused; capture happens in the bg.
+  if (!globalShortcut.register(SHORTCUT, () => mainWindow?.webContents.send('capture-shortcut'))) {
+    console.error(`failed to register global shortcut ${SHORTCUT}`)
+  }
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow(token)
   })
 })
+
+app.on('will-quit', () => globalShortcut.unregisterAll())
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()

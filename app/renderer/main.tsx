@@ -31,7 +31,11 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
 declare global {
   interface Window {
     engine: { baseUrl: string; token: string }
-    capture: { region: () => Promise<{ cancelled?: boolean; pngBase64?: string; error?: string }> }
+    capture: {
+      region: () => Promise<{ cancelled?: boolean; pngBase64?: string; error?: string }>
+      saveImage: (dataUrl: string, name: string) => Promise<{ saved?: boolean; path?: string; cancelled?: boolean }>
+      onShortcut: (cb: () => void) => () => void
+    }
   }
 }
 

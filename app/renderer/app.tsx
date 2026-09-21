@@ -1,8 +1,8 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Box, TextField, Typography, Card, CardContent, Button, Stack, Chip, IconButton, CircularProgress } from '@mui/material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faTrash, faCamera } from '@fortawesome/free-solid-svg-icons'
+import { faTrash, faCamera, faDownload } from '@fortawesome/free-solid-svg-icons'
 import { useUi } from './store.js'
 import { api } from './main.js'
 import { CanvasList } from './canvas-list.js'
@@ -66,12 +66,22 @@ const CaptureCard = ({ capture }: { capture: Capture }): React.ReactElement => {
               </Typography>
             )}
             {capture.screenshot && (
-              <Box
-                component="img"
-                src={capture.screenshot}
-                alt="captured region"
-                sx={{ display: 'block', maxHeight: 140, maxWidth: '100%', mt: 1, borderRadius: 1, border: 1, borderColor: 'divider' }}
-              />
+              <>
+                <Box
+                  component="img"
+                  src={capture.screenshot}
+                  alt="captured region"
+                  sx={{ display: 'block', maxHeight: 140, maxWidth: '100%', mt: 1, borderRadius: 1, border: 1, borderColor: 'divider' }}
+                />
+                <Button
+                  size="small"
+                  startIcon={<FontAwesomeIcon icon={faDownload} />}
+                  onClick={() => window.capture.saveImage(capture.screenshot as string, `fishnotes-capture-${capture.id}.png`)}
+                  sx={{ mt: 0.5, textTransform: 'none' }}
+                >
+                  Export image
+                </Button>
+              </>
             )}
           </Box>
           <IconButton size="small" aria-label="delete" onClick={() => del.mutate()} disabled={del.isPending}>
@@ -84,44 +94,9 @@ const CaptureCard = ({ capture }: { capture: Capture }): React.ReactElement => {
 }
 
 const SearchView = (): React.ReactElement => {
-  const { query, setQuery } = useUi()
-  const qc = useQueryClient()
+  const { query, setQuery, selecting, ocrJobs, captureScreen } = useUi()
   const [asked, setAsked] = useState<AskResult | null>(null)
   const searching = query.trim().length > 0
-
-  // Screen capture is two phases: (1) pick a region — blocks briefly on the native
-  // selector; (2) OCR + store — runs in the background so you can capture the next
-  // one right away. Each in-flight OCR shows its own "reading…" card.
-  const [selecting, setSelecting] = useState(false)
-  const [ocrJobs, setOcrJobs] = useState<number[]>([])
-  const jobSeq = useRef(0)
-
-  const capture = async (): Promise<void> => {
-    setSelecting(true)
-    let shot: { cancelled?: boolean; pngBase64?: string; error?: string }
-    try {
-      shot = await window.capture.region()
-    } finally {
-      setSelecting(false)
-    }
-    if (shot.error === 'permission') {
-      window.alert(
-        'Fish Notes needs Screen Recording permission.\n\nI opened System Settings → Privacy & Security → Screen Recording. Enable Fish Notes (or "Electron" in dev), then fully quit and reopen the app and try again.'
-      )
-      return
-    }
-    if (shot.cancelled || !shot.pngBase64) return
-    const jobId = ++jobSeq.current
-    setOcrJobs((j) => [...j, jobId])
-    try {
-      await api.request('/capture/screen', { method: 'POST', body: JSON.stringify({ pngBase64: shot.pngBase64 }) })
-      qc.invalidateQueries({ queryKey: ['captures'] })
-    } catch {
-      window.alert('Could not read text from that screenshot — try a clearer region.')
-    } finally {
-      setOcrJobs((j) => j.filter((x) => x !== jobId))
-    }
-  }
 
   // Live search is traditional keyword (FTS) — fast, local, no embeddings — so it
   // can fire per keystroke. Embeddings are reserved for Ask (grounding the answer).
@@ -136,6 +111,15 @@ const SearchView = (): React.ReactElement => {
     queryFn: () => api.request<SearchHit[]>(`/search?q=${encodeURIComponent(query)}&mode=keyword`),
     enabled: searching
   })
+
+  // When an OCR job finishes (ocrJobs shrinks), pull the fresh capture in promptly
+  // rather than waiting for the 4s poll. (captureScreen lives in the store, outside
+  // React Query, so it can't invalidate itself.)
+  const jobCount = ocrJobs.length
+  useEffect(() => {
+    if (!searching) all.refetch()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobCount])
 
   const shown: Capture[] = searching
     ? (results.data || []).map((h) => h.capture)
@@ -157,7 +141,7 @@ const SearchView = (): React.ReactElement => {
         <Button
           variant="outlined"
           startIcon={selecting ? <CircularProgress size={16} color="inherit" /> : <FontAwesomeIcon icon={faCamera} />}
-          onClick={capture}
+          onClick={captureScreen}
           disabled={selecting}
           sx={{ textTransform: 'none' }}
         >
@@ -237,7 +221,9 @@ const SearchView = (): React.ReactElement => {
 }
 
 export const App = (): React.ReactElement => {
-  const { view, selectedCanvasId } = useUi()
+  const { view, selectedCanvasId, captureScreen } = useUi()
+  // Global shortcut (Cmd/Ctrl+Shift+9) triggers capture from any view, even unfocused.
+  useEffect(() => window.capture.onShortcut(() => captureScreen()), [captureScreen])
   return (
     <Box sx={{ display: 'flex', height: '100vh' }}>
       <CanvasList />

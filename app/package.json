@@ -1,11 +1,11 @@
 {
-  "name": "canvas-notes-engine",
+  "name": "fish-notes-app",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "out/main/main.js",
   "engines": {
-    "node": ">=20 <25"
+    "node": ">=24 <25"
   },
   "scripts": {
     "test": "npm run rebuild:node && vitest run",

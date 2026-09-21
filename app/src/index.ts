@@ -9,7 +9,7 @@ import { buildServer } from './server.js'
 const nodeMajor = Number(process.versions.node.split('.')[0])
 if (nodeMajor !== 24) {
   console.error(
-    `Canvas Notes engine requires Node 24 (you are on ${process.versions.node}). Run \`nvm use\` in app/ (or \`nvm use 24\`), then retry.`
+    `Fish Notes engine requires Node 24 (you are on ${process.versions.node}). Run \`nvm use\` in app/ (or \`nvm use 24\`), then retry.`
   )
   process.exit(1)
 }

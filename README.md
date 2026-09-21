@@ -1,56 +1,91 @@
-# Canvas Notes
+# Fish Notes
 
-A search-first desktop app for turning everything you read at work into
-**self-organizing, grounded knowledge**. Capture passages from any web page or
-screen without altering the source; they join one searchable corpus; and each
-**canvas** (a topic you define) becomes a **living document** the app collates
-from your saved sources — with every claim cited back to what you captured.
+A search-first desktop app for turning everything you read into **grounded, searchable
+knowledge**. Clip text from the web (browser extension) or capture any region of your
+screen (OCR), and it all lands in one local, searchable corpus. Write **notes** that the
+AI can draft and extend — grounded in what you actually captured.
 
-- **Capture anywhere** — select or box-draw on a page; it saves the content,
-  surrounding context, source URL, and a `#:~:text=` jump-back anchor.
-- **Search-first** — one bar to search your sources or **ask a question answered
-  only from what you saved**, with citations.
-- **Canvases = living documents** — the LLM drafts a working doc per topic from
-  the relevant captures. **AI text refreshes; text you edit locks as yours.**
-  Word-level provenance and inline citations (Google-Docs feel).
-- **Self-contained & private** — local SQLite corpus, local embeddings, your
-  choice of local (Ollama) or cloud (Claude) model. No server to run.
+Everything is local: a SQLite corpus with full-text search + vector embeddings. The LLM
+runs through **your** OpenAI-compatible endpoint (a proxy, OpenAI, or anything that speaks
+the same API) — configured in-app, no key baked into the build.
 
-> Status: in development. See the design in
-> [`docs/superpowers/specs`](./docs/superpowers/specs) and the build plan in
-> [`docs/superpowers/plans`](./docs/superpowers/plans).
+> Status: early / in development. Design notes live in [`docs/`](./docs).
 
 ## How it works
 
 ```
-Browser / screen ──capture──▶ Electron app
-                                ├─ Corpus: SQLite (FTS5 + sqlite-vec embeddings)
-                                ├─ Retrieval: hybrid keyword + semantic
-                                ├─ Search + Ask: grounded answers with citations
-                                └─ Canvas: living document (TipTap) — AI spans
-                                   refresh, your edits lock, claims cite sources
-                                LLM via Vercel AI SDK → Claude or Ollama
+ Browser extension  ─┐
+ Screen capture (OCR) ├─▶  Engine (127.0.0.1)  ─▶  SQLite: FTS5 + sqlite-vec
+ Manual notes        ─┘        │                       │
+                               ├─ keyword / hybrid search
+                               ├─ grounded "ask" (RAG)
+                               └─ note drafting + inline /llm
+                               ▲
+                    OpenAI-compatible proxy (chat · vision OCR · embeddings)
 ```
 
-## Development
+The desktop app (Electron + React) embeds a small Node engine (Express + better-sqlite3).
+Captures are full-text indexed and embedded; notes are TipTap documents the AI contributes
+to by insertion (a one-time draft, and an inline `/llm` command).
 
-The engine's native SQLite addon is built for **Node 24**, so use it (via `nvm`):
+## Requirements
+
+- **macOS** (screen-capture uses the native `screencapture`; the rest is cross-platform).
+- **Node 24** — the native `better-sqlite3` addon is built against it (`app/.nvmrc`).
+- An **OpenAI-compatible endpoint** + API key for chat, OCR (a vision model), and embeddings.
+
+## Quick start
 
 ```bash
 cd app
-nvm use            # reads app/.nvmrc → Node 24
-CANVAS_TOKEN=dev npx tsx src/index.ts
+nvm use            # Node 24 (see app/.nvmrc)
+npm install
+npm run dev        # launches the Electron app (rebuilds better-sqlite3 for Electron first)
 ```
 
-Running on another Node major (e.g. the system default) exits early with a clear
-message — it does not crash. Node version stops mattering once the engine is
-packaged inside Electron (which ships its own runtime).
+Configure the AI in-app: **gear → Settings** (proxy base URL, API key, chat model, OCR
+model) → **Test connection** → **Save** → **Restart**. Settings persist to your user-data
+folder. For dev you can instead copy `app/.env.example` → `app/.env` and fill it in.
+
+### Build a macOS app
+
+```bash
+cd app
+npm run icon       # regenerate the app icon (optional; native rsvg-convert + iconutil)
+npm run package    # → app/dist/Fish Notes-<version>-arm64.dmg (ad-hoc signed)
+```
+
+The packaged app is ad-hoc signed for local use. It does **not** bundle your API key —
+enter it in Settings after install.
+
+### Browser extension (optional capture source)
+
+```bash
+cd capturer
+npm install
+npm run build      # bundles extension/content.js + background.js
+```
+
+Then load `capturer/extension/` as an unpacked extension — see
+[`capturer/README.md`](./capturer/README.md).
+
+## Development
+
+```bash
+cd app
+npm test           # engine tests (vitest)
+npm run typecheck  # tsc --noEmit
+```
+
+Native module note: `better-sqlite3` must be compiled for the runtime that loads it —
+Node (tests/`start`) vs Electron (`dev`/`package`). The `dev`/`test`/`start` scripts run the
+right rebuild automatically; if you hit an `ERR_DLOPEN_FAILED`, run `npm run rebuild:electron`
+(for the app) or `npm run rebuild:node` (for tests).
 
 ## Tech
 
-Electron + React + TypeScript · MUI · TanStack Query · zustand · TipTap
-(ProseMirror) · better-sqlite3 + sqlite-vec + FTS5 · `@xenova/transformers`
-(local embeddings) · Vercel AI SDK (`@ai-sdk/anthropic` + Ollama) · vitest.
+Electron · React · TypeScript · MUI · TanStack Query · zustand · TipTap · Express ·
+better-sqlite3 + sqlite-vec (FTS5) · Vercel AI SDK (OpenAI-compatible).
 
 ## License
 

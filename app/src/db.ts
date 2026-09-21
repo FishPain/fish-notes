@@ -55,7 +55,6 @@ const migrateFtsTokenizer = (db: Database.Database): void => {
 const migrate = (db: Database.Database): void => {
   for (const statement of SCHEMA) db.prepare(statement).run()
   ensureColumn(db, 'canvases', 'description', "description TEXT NOT NULL DEFAULT ''")
-  ensureColumn(db, 'canvases', 'collatedAt', "collatedAt TEXT NOT NULL DEFAULT ''")
   migrateFtsTokenizer(db)
 }
 

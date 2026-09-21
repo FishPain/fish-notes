@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3'
-import { getCanvas, markCollated } from './canvas.service.js'
+import { getCanvas } from './canvas.service.js'
 import { hybridSearch } from './search.service.js'
 import { GenerateMarkdownFn, Source } from './markdown-generator.js'
 
@@ -19,9 +19,7 @@ export const draftFromSources = async (
   const canvas = getCanvas(db, canvasId)
   if (!canvas) return ''
   const topic = [canvas.title, canvas.description].filter(Boolean).join(' — ')
-  const md = await generate(`Write a concise brief on "${topic}".`, await sourcesFor(db, topic), '')
-  markCollated(db, canvasId)
-  return md
+  return generate(`Write a concise brief on "${topic}".`, await sourcesFor(db, topic), '')
 }
 
 // Inline /llm command: follow the user's prompt with the current doc as context.

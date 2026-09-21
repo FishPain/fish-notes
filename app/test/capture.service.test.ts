@@ -1,17 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { openDb } from '../src/db.js'
-import { insertCapture, getCapture, deleteCapture, countCapturesSince } from '../src/capture.service.js'
+import { insertCapture, getCapture, deleteCapture } from '../src/capture.service.js'
 
 describe('capture.service', () => {
-  it('counts captures since a timestamp', async () => {
-    const db = openDb(':memory:')
-    await insertCapture(db, { content: 'old', source: { type: 'web' }, capturedAt: '2020-01-01T00:00:00.000Z' })
-    await insertCapture(db, { content: 'new', source: { type: 'web' }, capturedAt: '2030-01-01T00:00:00.000Z' })
-    expect(countCapturesSince(db, '2025-01-01T00:00:00.000Z')).toBe(1)
-    expect(countCapturesSince(db, '')).toBe(2)
-    db.close()
-  })
-
   it('inserts and reads back with parsed source/tags and a capturedAt', async () => {
     const db = openDb(':memory:')
     const id = await insertCapture(db, {

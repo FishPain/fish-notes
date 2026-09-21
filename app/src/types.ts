@@ -32,26 +32,10 @@ export interface SearchResult {
   score: number
 }
 
-export interface Segment {
-  id: string
-  heading: string
-  text: string
-  origin: 'ai' | 'user'
-  citations: number[]
-}
-
 export interface Canvas {
   id: number
   title: string
   description: string
   doc: unknown
   updatedAt: string
-  collatedAt: string
-}
-
-// What the generator returns before validation/merge (no id/origin yet).
-export interface RawSegment {
-  heading: string
-  text: string
-  citations: number[]
 }

@@ -1,19 +1,18 @@
 import { describe, it, expect } from 'vitest'
 import { openDb } from '../src/db.js'
 import { insertCapture } from '../src/capture.service.js'
-import { createCanvas, getCanvas } from '../src/canvas.service.js'
+import { createCanvas } from '../src/canvas.service.js'
 import { draftFromSources, completeInline } from '../src/draft.service.js'
 import { Source } from '../src/markdown-generator.js'
 
 describe('draft.service', () => {
-  it('draftFromSources returns markdown from sources and stamps collatedAt', async () => {
+  it('draftFromSources returns markdown grounded in the note sources', async () => {
     const db = openDb(':memory:')
     await insertCapture(db, { content: 'Kubernetes uses a flat pod network', source: { type: 'web', url: 'https://k8s.io' } })
     const id = createCanvas(db, 'Kubernetes')
     const gen = async (instruction: string, sources: Source[]) => `# ${instruction}\n${sources.length} sources`
     const md = await draftFromSources(db, id, gen)
     expect(md).toContain('#')
-    expect(getCanvas(db, id)!.collatedAt).not.toBe('')
     db.close()
   })
 

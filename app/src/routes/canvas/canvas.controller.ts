@@ -4,7 +4,6 @@ import Database from 'better-sqlite3'
 import { httpErrors, Reason, throwHttpError } from '../../utils/http-errors.js'
 import { asyncHandler } from '../../utils/async-handler.js'
 import { createCanvas, listCanvases, getCanvas, saveDoc, deleteCanvas } from '../../canvas.service.js'
-import { countCapturesSince } from '../../capture.service.js'
 import { draftFromSources, completeInline } from '../../draft.service.js'
 import { GenerateMarkdownFn } from '../../markdown-generator.js'
 
@@ -35,7 +34,7 @@ export const canvasController = (db: Database.Database, generate: GenerateMarkdo
       throwHttpError(httpErrors.notFound, Reason.NotFound, res)
       return
     }
-    res.json({ ...canvas, newSourceCount: countCapturesSince(db, canvas.collatedAt) })
+    res.json(canvas)
   })
 
   router.patch('/:id', (req, res) => {

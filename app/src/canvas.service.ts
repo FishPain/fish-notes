@@ -10,7 +10,6 @@ interface CanvasRow {
   description: string
   doc: string
   updatedAt: string
-  collatedAt: string
 }
 
 const rowToCanvas = (row: CanvasRow): Canvas => ({
@@ -18,8 +17,7 @@ const rowToCanvas = (row: CanvasRow): Canvas => ({
   title: row.title,
   description: row.description,
   doc: JSON.parse(row.doc),
-  updatedAt: row.updatedAt,
-  collatedAt: row.collatedAt
+  updatedAt: row.updatedAt
 })
 
 export const createCanvas = (db: Database.Database, title: string, description = ''): number => {
@@ -44,10 +42,6 @@ export const saveDoc = (db: Database.Database, id: number, doc: unknown): void =
     DateTime.now().toISO(),
     id
   )
-}
-
-export const markCollated = (db: Database.Database, id: number): void => {
-  db.prepare('UPDATE canvases SET collatedAt = ? WHERE id = ?').run(DateTime.now().toISO(), id)
 }
 
 export const deleteCanvas = (db: Database.Database, id: number): void => {

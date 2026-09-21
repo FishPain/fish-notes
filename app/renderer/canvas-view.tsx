@@ -14,7 +14,6 @@ interface Canvas {
   id: number
   title: string
   doc: unknown
-  newSourceCount?: number
 }
 
 interface ModalState {

@@ -1,12 +1,11 @@
 import Database from 'better-sqlite3'
 import { getCanvas } from './canvas.service.js'
 import { hybridSearch } from './search.service.js'
+import { RETRIEVAL } from './constants.js'
 import { GenerateMarkdownFn, Source } from './ai/markdown-generator.js'
 
-const RETRIEVE_K = 12
-
 const sourcesFor = async (db: Database.Database, query: string): Promise<Source[]> => {
-  const hits = await hybridSearch(db, query, RETRIEVE_K)
+  const hits = await hybridSearch(db, query, RETRIEVAL.k)
   return hits.map((h) => ({ id: h.capture.id, content: h.capture.content, url: h.capture.source.url }))
 }
 

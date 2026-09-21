@@ -7,7 +7,7 @@ import { openDb } from '../src/db.js'
 import { buildServer } from '../src/server.js'
 import { makeGenerate } from '../src/ai/generator.js'
 import { makeMarkdownGenerator } from '../src/ai/markdown-generator.js'
-import { AI, PROXY } from '../src/constants.js'
+import { AI, PROXY, RETRIEVAL } from '../src/constants.js'
 import { loadOrCreateToken } from './engine-token.js'
 import { writeSettings } from './settings.js'
 
@@ -47,7 +47,7 @@ const captureRegion = (): Promise<{ cancelled?: boolean; pngBase64?: string; err
   })
 }
 
-const SHORTCUT = 'CommandOrControl+Shift+9'
+const SHORTCUT = process.env.CANVAS_CAPTURE_SHORTCUT || 'CommandOrControl+Shift+9'
 let mainWindow: BrowserWindow | null = null
 
 // Save a data-URL PNG to a user-chosen path and reveal it in Finder. Screenshots
@@ -113,26 +113,33 @@ app.whenReady().then(() => {
     baseUrl: PROXY.baseUrl,
     apiKey: PROXY.apiKey ?? '',
     chatModel: AI.model,
-    ocrModel: AI.ocrModel
+    ocrModel: AI.ocrModel,
+    retrievalK: RETRIEVAL.k,
+    captureShortcut: SHORTCUT
   }))
-  ipcMain.handle('settings:save', (_e, cfg: { baseUrl?: string; apiKey?: string; chatModel?: string; ocrModel?: string }) => {
+  ipcMain.handle('settings:save', (_e, cfg: Record<string, unknown>) => {
     const map: Record<string, string> = {}
-    if (cfg.baseUrl !== undefined) map.OPENAI_BASE_URL = cfg.baseUrl
-    if (cfg.apiKey !== undefined) map.OPENAI_API_KEY = cfg.apiKey
-    if (cfg.chatModel !== undefined) map.CANVAS_AI_MODEL = cfg.chatModel
-    if (cfg.ocrModel !== undefined) map.CANVAS_OCR_MODEL = cfg.ocrModel
+    if (cfg.baseUrl !== undefined) map.OPENAI_BASE_URL = String(cfg.baseUrl)
+    if (cfg.apiKey !== undefined) map.OPENAI_API_KEY = String(cfg.apiKey)
+    if (cfg.chatModel !== undefined) map.CANVAS_AI_MODEL = String(cfg.chatModel)
+    if (cfg.ocrModel !== undefined) map.CANVAS_OCR_MODEL = String(cfg.ocrModel)
+    if (cfg.retrievalK !== undefined) map.CANVAS_RETRIEVE_K = String(cfg.retrievalK)
+    if (cfg.captureShortcut !== undefined) map.CANVAS_CAPTURE_SHORTCUT = String(cfg.captureShortcut)
     writeSettings(map)
   })
+  // Also returns the available model ids so the UI can offer dropdowns.
   ipcMain.handle('settings:test', async (_e, { baseUrl, apiKey }: { baseUrl: string; apiKey: string }) => {
     try {
       const res = await fetch(`${baseUrl}/models`, { headers: { authorization: `Bearer ${apiKey}` } })
-      if (!res.ok) return { ok: false, status: res.status }
-      const data = (await res.json()) as { data?: unknown[] }
-      return { ok: true, count: Array.isArray(data.data) ? data.data.length : 0 }
+      if (!res.ok) return { ok: false, status: res.status, models: [] }
+      const data = (await res.json()) as { data?: { id: string }[] }
+      const models = (data.data ?? []).map((m) => m.id)
+      return { ok: true, count: models.length, models }
     } catch {
-      return { ok: false, status: 0 }
+      return { ok: false, status: 0, models: [] }
     }
   })
+  ipcMain.handle('settings:openDataDir', () => shell.openPath(app.getPath('userData')))
   ipcMain.handle('settings:relaunch', () => {
     app.relaunch()
     app.exit(0)

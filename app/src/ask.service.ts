@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3'
 import { Capture } from './types.js'
 import { hybridSearch } from './search.service.js'
+import { RETRIEVAL } from './constants.js'
 
 export type GenerateFn = (prompt: string) => Promise<string>
 
@@ -20,7 +21,7 @@ export const ask = async (
   db: Database.Database,
   question: string,
   generate: GenerateFn,
-  k = 6
+  k = RETRIEVAL.k
 ): Promise<AskResult> => {
   const hits = await hybridSearch(db, question, k)
   const citations = hits.map((h) => h.capture)

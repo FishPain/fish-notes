@@ -27,5 +27,6 @@ contextBridge.exposeInMainWorld('settings', {
   get: () => ipcRenderer.invoke('settings:get'),
   save: (cfg: unknown) => ipcRenderer.invoke('settings:save', cfg),
   test: (baseUrl: string, apiKey: string) => ipcRenderer.invoke('settings:test', { baseUrl, apiKey }),
+  openDataDir: () => ipcRenderer.invoke('settings:openDataDir'),
   relaunch: () => ipcRenderer.invoke('settings:relaunch')
 })

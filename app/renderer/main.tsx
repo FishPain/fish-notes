@@ -42,7 +42,8 @@ declare global {
     settings: {
       get: () => Promise<AiSettings>
       save: (cfg: Partial<AiSettings>) => Promise<void>
-      test: (baseUrl: string, apiKey: string) => Promise<{ ok: boolean; count?: number; status?: number }>
+      test: (baseUrl: string, apiKey: string) => Promise<{ ok: boolean; count?: number; status?: number; models?: string[] }>
+      openDataDir: () => void
       relaunch: () => void
     }
   }
@@ -53,6 +54,8 @@ export interface AiSettings {
   apiKey: string
   chatModel: string
   ocrModel: string
+  retrievalK: number
+  captureShortcut: string
 }
 
 const queryClient = new QueryClient()

@@ -40,3 +40,6 @@ export const EMBEDDING = {
   model: process.env.CANVAS_EMBED_MODEL || 'text-embedding-3-small',
   dim: Number(process.env.CANVAS_EMBED_DIM || 1536)
 }
+
+// How many captures are retrieved to ground Ask / draft / /llm.
+export const RETRIEVAL = { k: Number(process.env.CANVAS_RETRIEVE_K) || 12 }

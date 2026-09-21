@@ -3,6 +3,8 @@ import { Box, TextField, Typography, Card, CardContent, Button, Stack, Chip, Ico
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faTrash, faCamera, faDownload } from '@fortawesome/free-solid-svg-icons'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { useUi } from './store.js'
 import { api } from './main.js'
 import { CanvasList } from './canvas-list.js'
@@ -13,7 +15,7 @@ interface Capture {
   content: string
   note: string
   tags: string[]
-  source: { url?: string; anchor?: string }
+  source: { type?: string; url?: string; anchor?: string }
   screenshot?: string | null
 }
 interface SearchHit {
@@ -39,8 +41,25 @@ const CaptureCard = ({ capture }: { capture: Capture }): React.ReactElement => {
     <Card sx={{ mb: 1 }}>
       <CardContent>
         <Stack direction="row" alignItems="flex-start" spacing={1}>
-          <Box sx={{ flex: 1 }}>
-            <Typography>{capture.content}</Typography>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            {capture.source.type === 'screen' ? (
+              <Box
+                sx={{
+                  overflowX: 'auto',
+                  '& table': { borderCollapse: 'collapse', my: 1 },
+                  '& th, & td': { border: '1px solid', borderColor: 'divider', px: 1, py: 0.5, textAlign: 'left' },
+                  '& th': { bgcolor: 'rgba(255,255,255,.04)' },
+                  '& pre': { bgcolor: 'rgba(255,255,255,.05)', p: 1, borderRadius: 1, overflow: 'auto' },
+                  '& code': { bgcolor: 'rgba(255,255,255,.06)', px: 0.5, borderRadius: 0.5 },
+                  '& p': { my: 0.5 },
+                  '& a': { color: 'primary.light' }
+                }}
+              >
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{capture.content}</ReactMarkdown>
+              </Box>
+            ) : (
+              <Typography>{capture.content}</Typography>
+            )}
             {capture.note && (
               <Typography variant="body2" sx={{ mt: 0.5, color: 'primary.light' }}>
                 {capture.note}

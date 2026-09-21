@@ -2,8 +2,11 @@ import { AI } from './constants.js'
 
 const MAX_RETRIES = 4
 const PROMPT =
-  'Transcribe all text in this image exactly, preserving line breaks. ' +
-  'Output only the transcription; if there is no text, output nothing.'
+  'Transcribe the content of this image as GitHub-Flavored Markdown. ' +
+  'Preserve structure: render tables as Markdown tables, bullet/numbered lists as Markdown lists, ' +
+  'headings with #, and code as fenced code blocks. Keep the text verbatim. ' +
+  'Output only the Markdown — no commentary, no code fence around the whole thing. ' +
+  'If there is no text, output nothing.'
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 

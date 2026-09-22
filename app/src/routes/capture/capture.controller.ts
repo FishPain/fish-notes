@@ -95,13 +95,16 @@ export const captureController = (db: Database.Database, generate: GenerateFn): 
       }
       const uploadId = randomUUID()
       const capturedAt = new Date().toISOString()
+      const title = body.name.replace(/\.[^.]+$/, '') // drop extension for the title
       const summary = await summarize(generate, body.name, text)
-      // Sequential: keeps embed calls friendly to the proxy's rate limit. The whole-doc
-      // summary rides on the first chunk's source so the UI can show it per document.
+      // Sequential: keeps embed calls friendly to the proxy's rate limit. The title goes
+      // in contextText so it's embedded + FTS-indexed with every chunk (title-based
+      // queries retrieve the doc even when the body never says it). The whole-doc summary
+      // rides on the first chunk's source so the UI can show it per document.
       for (let i = 0; i < chunks.length; i++) {
         const source: CaptureSource = { type: 'upload', name: body.name, uploadId, chunkIndex: i }
         if (i === 0 && summary) source.summary = summary
-        await insertCapture(db, { content: chunks[i], source, tags: [], capturedAt })
+        await insertCapture(db, { content: chunks[i], contextText: title, source, tags: [], capturedAt })
       }
       res.status(201).json({ uploadId, chunks: chunks.length })
     })

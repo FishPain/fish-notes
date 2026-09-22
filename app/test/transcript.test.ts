@@ -11,7 +11,7 @@ const VTT = `WEBVTT
 00:00:04.000 --> 00:00:06.000
 Hello everyone
 
-3
+820882af-230f-41b2-a80b-b900e9366d19/365-0
 00:00:06.000 --> 00:00:09.000
 <c>Let's start the meeting</c>
 `
@@ -23,10 +23,11 @@ describe('transcript', () => {
     expect(isSubtitles('a.txt', 'just prose')).toBe(false)
   })
 
-  it('strips headers/cues/timestamps/tags and de-dupes repeated lines', () => {
+  it('strips headers/cues/timestamps/tags (incl. uuid cue ids) and de-dupes repeats', () => {
     const out = cleanTranscript(VTT)
     expect(out).not.toMatch(/WEBVTT|-->|<|position:/)
-    expect(out).not.toMatch(/^\d+$/m)
+    expect(out).not.toMatch(/^\d+$/m) // numeric cue ids gone
+    expect(out).not.toContain('820882af') // uuid cue id gone (line before a timestamp)
     // "Hello everyone" appears twice back-to-back → collapsed to one
     expect(out.match(/Hello everyone/g)).toHaveLength(1)
     expect(out).toContain("Let's start the meeting")

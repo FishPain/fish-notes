@@ -12,8 +12,8 @@ export interface NoteEditorHandle {
 
 export const NoteEditor = React.forwardRef<
   NoteEditorHandle,
-  { doc: unknown; onChange: (doc: unknown) => void; onCommand: (prompt: string, context: string) => Promise<string> }
->(({ doc, onChange, onCommand }, ref) => {
+  { doc: unknown; onChange: (doc: unknown) => void; onCommand: (prompt: string, context: string) => Promise<string>; onEmptyChange?: (empty: boolean) => void }
+>(({ doc, onChange, onCommand, onEmptyChange }, ref) => {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const editor = useEditor({
@@ -24,7 +24,9 @@ export const NoteEditor = React.forwardRef<
       LlmPrompt.configure({ onRun: onCommand })
     ],
     content: (doc as object) || { type: 'doc', content: [] },
+    onCreate: ({ editor }) => onEmptyChange?.(editor.isEmpty),
     onUpdate: ({ editor }) => {
+      onEmptyChange?.(editor.isEmpty)
       if (saveTimer.current) clearTimeout(saveTimer.current)
       saveTimer.current = setTimeout(() => onChange(editor.getJSON()), 800)
     }

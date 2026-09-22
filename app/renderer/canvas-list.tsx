@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Box, List, ListItem, ListItemButton, ListItemText, Typography, TextField, Button, IconButton, Stack, FormControlLabel, Checkbox, Popover } from '@mui/material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faPlus, faMagnifyingGlass, faTrash, faGear, faComments } from '@fortawesome/free-solid-svg-icons'
+import { faPlus, faLayerGroup, faTrash, faGear, faComments } from '@fortawesome/free-solid-svg-icons'
 import { useUi } from './store.js'
 import { api } from './main.js'
 import { SettingsDialog } from './settings-dialog.js'
@@ -59,8 +59,8 @@ export const CanvasList = (): React.ReactElement => {
   return (
     <Box sx={{ width: 250, bgcolor: 'background.paper', borderRight: 1, borderColor: 'divider', p: 1.5, height: '100vh', overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
       <ListItemButton selected={view === 'search'} onClick={openSearch} sx={{ borderRadius: 2, flexGrow: 0 }}>
-        <FontAwesomeIcon icon={faMagnifyingGlass} style={{ opacity: 0.7 }} />
-        <ListItemText primary="Search" sx={{ ml: 1.5 }} />
+        <FontAwesomeIcon icon={faLayerGroup} style={{ opacity: 0.7 }} />
+        <ListItemText primary="Sources" sx={{ ml: 1.5 }} />
       </ListItemButton>
       <ListItemButton selected={view === 'chat'} onClick={openChat} sx={{ borderRadius: 2, mb: 1.5, flexGrow: 0 }}>
         <FontAwesomeIcon icon={faComments} style={{ opacity: 0.7 }} />

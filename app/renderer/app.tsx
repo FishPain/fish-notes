@@ -171,7 +171,7 @@ const SearchView = (): React.ReactElement => {
   return (
     <Box sx={{ flex: 1, overflow: 'auto', maxWidth: 900, mx: 'auto', p: 3 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-        <Typography variant="h4">Notes</Typography>
+        <Typography variant="h4">Sources</Typography>
         <Stack direction="row" spacing={1}>
           <Button
             variant="outlined"

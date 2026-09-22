@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Box, List, ListItem, ListItemButton, ListItemText, Typography, TextField, Button, IconButton, Stack, FormControlLabel, Checkbox, Popover } from '@mui/material'
+import { Box, List, ListItem, ListItemButton, ListItemText, Typography, TextField, Button, IconButton, Stack, FormControlLabel, Checkbox, Popover, Divider } from '@mui/material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faPlus, faLayerGroup, faTrash, faGear, faComments } from '@fortawesome/free-solid-svg-icons'
@@ -67,7 +67,14 @@ export const CanvasList = (): React.ReactElement => {
         <ListItemText primary="Chat" sx={{ ml: 1.5 }} />
       </ListItemButton>
 
-      <Typography variant="overline" sx={{ opacity: 0.5, px: 1 }}>Notes</Typography>
+      <Divider sx={{ my: 1 }} />
+
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ pl: 1, pr: 0.5 }}>
+        <Typography variant="overline" sx={{ opacity: 0.5 }}>Notes</Typography>
+        <IconButton size="small" aria-label="new note" onClick={(e) => setAnchor(e.currentTarget)}>
+          <FontAwesomeIcon icon={faPlus} style={{ fontSize: 13 }} />
+        </IconButton>
+      </Stack>
       <List dense sx={{ flex: 1 }}>
         {(canvases.data || []).map((c) => (
           <ListItem
@@ -98,15 +105,7 @@ export const CanvasList = (): React.ReactElement => {
         ))}
       </List>
 
-      <Button
-        fullWidth
-        variant="contained"
-        startIcon={<FontAwesomeIcon icon={faPlus} />}
-        onClick={(e) => setAnchor(e.currentTarget)}
-        sx={{ mt: 1, textTransform: 'none', fontWeight: 600 }}
-      >
-        New note
-      </Button>
+      <Divider sx={{ mt: 1, mb: 0.5 }} />
 
       <ListItemButton onClick={() => setSettingsOpen(true)} sx={{ borderRadius: 2, mt: 1, flexGrow: 0 }}>
         <FontAwesomeIcon icon={faGear} style={{ opacity: 0.7 }} />

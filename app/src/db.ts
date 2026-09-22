@@ -26,6 +26,14 @@ const SCHEMA = [
      description TEXT NOT NULL DEFAULT '',
      doc         TEXT NOT NULL DEFAULT '[]',
      updatedAt   TEXT NOT NULL
+   )`,
+  `CREATE TABLE IF NOT EXISTS chats (
+     id         INTEGER PRIMARY KEY AUTOINCREMENT,
+     title      TEXT NOT NULL DEFAULT '',
+     messages   TEXT NOT NULL DEFAULT '[]',
+     docIds     TEXT NOT NULL DEFAULT '[]',
+     createdAt  TEXT NOT NULL,
+     updatedAt  TEXT NOT NULL
    )`
 ]
 

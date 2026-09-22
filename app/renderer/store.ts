@@ -7,6 +7,7 @@ interface UiState {
   query: string
   view: 'search' | 'canvas' | 'chat'
   selectedCanvasId: number | null
+  selectedChatId: number | null
   pendingDraftId: number | null
   selecting: boolean // native region selector is open (button disabled)
   ocrJobs: number[] // in-flight OCR jobs (each renders a "reading…" card)
@@ -15,6 +16,8 @@ interface UiState {
   setPendingDraft: (id: number | null) => void
   openSearch: () => void
   openChat: () => void
+  newChat: () => void
+  selectChat: (id: number) => void
   openCanvas: (id: number) => void
   captureScreen: () => Promise<void>
   uploadDoc: (name: string, text: string) => Promise<void>
@@ -24,6 +27,7 @@ export const useUi = create<UiState>((set, get) => ({
   query: '',
   view: 'search',
   selectedCanvasId: null,
+  selectedChatId: null,
   pendingDraftId: null,
   selecting: false,
   ocrJobs: [],
@@ -32,6 +36,8 @@ export const useUi = create<UiState>((set, get) => ({
   setPendingDraft: (id) => set({ pendingDraftId: id }),
   openSearch: () => set({ view: 'search', selectedCanvasId: null }),
   openChat: () => set({ view: 'chat', selectedCanvasId: null }),
+  newChat: () => set({ view: 'chat', selectedChatId: null, selectedCanvasId: null }),
+  selectChat: (id) => set({ view: 'chat', selectedChatId: id, selectedCanvasId: null }),
   openCanvas: (id) => set({ view: 'canvas', selectedCanvasId: id }),
 
   // Shared by the "Capture screen" button and the global shortcut. Phase 1 (region

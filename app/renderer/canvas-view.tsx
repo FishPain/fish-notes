@@ -29,6 +29,7 @@ export const CanvasView = ({ canvasId }: { canvasId: number }): React.ReactEleme
   const editorRef = useRef<NoteEditorHandle>(null)
   const { pendingDraftId, setPendingDraft } = useUi()
   const [modal, setModal] = useState<ModalState>({ open: false, loading: false, markdown: '', title: '' })
+  const [empty, setEmpty] = useState(true)
   const resolverRef = useRef<((v: string) => void) | null>(null)
 
   const canvas = useQuery({
@@ -88,13 +89,15 @@ export const CanvasView = ({ canvasId }: { canvasId: number }): React.ReactEleme
 
   return (
     <Box sx={{ flex: 1, overflow: 'auto', px: 4, py: 5 }}>
-      <Box sx={{ maxWidth: 720, mx: 'auto' }}>
+      <Box sx={{ maxWidth: 720 }}>
         <Typography variant="h4" sx={{ mb: 1 }}>{canvas.data.title}</Typography>
-        <Typography variant="caption" sx={{ opacity: 0.45, display: 'block', mb: 3 }}>
-          Type <b>/llm</b> then your instruction to have AI write here from your sources.
-        </Typography>
+        {empty && (
+          <Typography variant="caption" sx={{ opacity: 0.45, display: 'block', mb: 3 }}>
+            Type <b>/llm</b> then your instruction to have AI write here from your sources.
+          </Typography>
+        )}
 
-        <NoteEditor key={canvasId} ref={editorRef} doc={canvas.data.doc} onChange={(d) => save.mutate(d)} onCommand={runComplete} />
+        <NoteEditor key={canvasId} ref={editorRef} doc={canvas.data.doc} onChange={(d) => save.mutate(d)} onCommand={runComplete} onEmptyChange={setEmpty} />
       </Box>
 
       <Dialog open={modal.open} onClose={() => closeWith('')} maxWidth="sm" fullWidth>

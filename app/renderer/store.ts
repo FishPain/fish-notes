@@ -5,7 +5,7 @@ let jobSeq = 0
 
 interface UiState {
   query: string
-  view: 'search' | 'canvas'
+  view: 'search' | 'canvas' | 'chat'
   selectedCanvasId: number | null
   pendingDraftId: number | null
   selecting: boolean // native region selector is open (button disabled)
@@ -14,6 +14,7 @@ interface UiState {
   setQuery: (query: string) => void
   setPendingDraft: (id: number | null) => void
   openSearch: () => void
+  openChat: () => void
   openCanvas: (id: number) => void
   captureScreen: () => Promise<void>
   uploadDoc: (name: string, text: string) => Promise<void>
@@ -30,6 +31,7 @@ export const useUi = create<UiState>((set, get) => ({
   setQuery: (query) => set({ query }),
   setPendingDraft: (id) => set({ pendingDraftId: id }),
   openSearch: () => set({ view: 'search', selectedCanvasId: null }),
+  openChat: () => set({ view: 'chat', selectedCanvasId: null }),
   openCanvas: (id) => set({ view: 'canvas', selectedCanvasId: id }),
 
   // Shared by the "Capture screen" button and the global shortcut. Phase 1 (region

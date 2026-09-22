@@ -6,6 +6,7 @@ import { requireToken } from './middleware/require-token.js'
 import { captureController } from './routes/capture/capture.controller.js'
 import { searchController } from './routes/search/search.controller.js'
 import { askController } from './routes/ask/ask.controller.js'
+import { chatController } from './routes/chat/chat.controller.js'
 import { canvasController } from './routes/canvas/canvas.controller.js'
 
 export const routes = (
@@ -20,6 +21,7 @@ export const routes = (
   api.use('/capture', captureController(db, generate))
   api.use('/search', searchController(db))
   api.use('/ask', askController(db, generate))
+  api.use('/chat', chatController(db, generate))
   api.use('/canvas', canvasController(db, generateMarkdown))
   app.use('/', api)
 }

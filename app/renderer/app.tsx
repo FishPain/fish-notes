@@ -12,6 +12,7 @@ import { StatusCard } from './status-card.js'
 import { UploadGroup } from './upload-group.js'
 import { CanvasList } from './canvas-list.js'
 import { CanvasView } from './canvas-view.js'
+import { ChatView } from './chat-view.js'
 
 interface Capture {
   id: number
@@ -270,7 +271,9 @@ export const App = (): React.ReactElement => {
   return (
     <Box sx={{ display: 'flex', height: '100vh' }}>
       <CanvasList />
-      {view === 'canvas' && selectedCanvasId !== null ? (
+      {view === 'chat' ? (
+        <ChatView />
+      ) : view === 'canvas' && selectedCanvasId !== null ? (
         <CanvasView canvasId={selectedCanvasId} />
       ) : (
         <SearchView />

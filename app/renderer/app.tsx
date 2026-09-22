@@ -26,10 +26,6 @@ interface SearchHit {
   capture: Capture
   score: number
 }
-interface AskResult {
-  answer: string
-  citations: Capture[]
-}
 
 const CaptureCard = ({ capture }: { capture: Capture }): React.ReactElement => {
   const qc = useQueryClient()
@@ -111,8 +107,7 @@ const CaptureCard = ({ capture }: { capture: Capture }): React.ReactElement => {
 }
 
 const SearchView = (): React.ReactElement => {
-  const { query, setQuery, selecting, ocrJobs, uploadJobs, captureScreen, uploadDoc } = useUi()
-  const [asked, setAsked] = useState<AskResult | null>(null)
+  const { query, setQuery, selecting, ocrJobs, uploadJobs, captureScreen, uploadDoc, askInChat } = useUi()
   const fileRef = useRef<HTMLInputElement>(null)
   const searching = query.trim().length > 0
 
@@ -159,13 +154,10 @@ const SearchView = (): React.ReactElement => {
     }
   }
 
-  const askMut = useMutation({
-    mutationFn: () =>
-      api.request<AskResult>('/ask', { method: 'POST', body: JSON.stringify({ question: query }) }),
-    onSuccess: (r) => setAsked(r)
-  })
+  // Asking a question hands off to a fresh Chat conversation (seeded via the store).
   const ask = (): void => {
-    if (query.trim() && !askMut.isPending) askMut.mutate()
+    const q = query.trim()
+    if (q) askInChat(q)
   }
 
   return (
@@ -210,26 +202,10 @@ const SearchView = (): React.ReactElement => {
             if (e.key === 'Enter') ask()
           }}
         />
-        <Button variant="contained" onClick={ask} disabled={!searching || askMut.isPending} sx={{ minWidth: 88 }}>
-          {askMut.isPending ? <CircularProgress size={20} color="inherit" /> : 'Ask'}
+        <Button variant="contained" onClick={ask} disabled={!query.trim()} sx={{ minWidth: 88 }}>
+          Ask
         </Button>
       </Stack>
-
-      {askMut.isPending && <StatusCard label="Thinking…" />}
-
-      {asked && !askMut.isPending && (
-        <Card sx={{ mb: 2, bgcolor: 'rgba(201,138,58,.08)' }}>
-          <CardContent>
-            <Typography variant="subtitle2" sx={{ opacity: 0.7 }}>Answer</Typography>
-            <Typography sx={{ whiteSpace: 'pre-wrap' }}>{asked.answer}</Typography>
-            <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: 'wrap' }}>
-              {asked.citations.map((c) => (
-                <Chip key={c.id} size="small" label={c.source.url || `#${c.id}`} />
-              ))}
-            </Stack>
-          </CardContent>
-        </Card>
-      )}
 
       <Typography variant="subtitle2" sx={{ mb: 1, opacity: 0.6 }}>
         {searching ? `Results (${shown.length})` : `All captures (${shown.length})`}

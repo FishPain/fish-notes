@@ -36,7 +36,7 @@ interface Conversation {
 }
 
 export const ChatView = (): React.ReactElement => {
-  const { selectedChatId, newChat, selectChat } = useUi()
+  const { selectedChatId, newChat, selectChat, pendingChatQuestion, clearPendingChatQuestion } = useUi()
   const qc = useQueryClient()
   const [messages, setMessages] = useState<Msg[]>([])
   const [input, setInput] = useState('')
@@ -92,8 +92,8 @@ export const ChatView = (): React.ReactElement => {
     qc.invalidateQueries({ queryKey: ['chats'] })
   }
 
-  const send = async (): Promise<void> => {
-    const q = input.trim()
+  const send = async (text?: string): Promise<void> => {
+    const q = (text ?? input).trim()
     if (!q || pending) return
     const withUser: Msg[] = [...messages, { role: 'user', content: q }]
     setMessages(withUser)
@@ -124,6 +124,16 @@ export const ChatView = (): React.ReactElement => {
     qc.invalidateQueries({ queryKey: ['chats'] })
     newChat()
   }
+
+  // Seeded from Sources' Ask: send the question once, into this fresh conversation.
+  useEffect(() => {
+    if (pendingChatQuestion) {
+      const q = pendingChatQuestion
+      clearPendingChatQuestion()
+      send(q)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingChatQuestion])
 
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', maxWidth: 900, mx: 'auto', width: '100%' }}>
@@ -227,7 +237,7 @@ export const ChatView = (): React.ReactElement => {
             }
           }}
         />
-        <Button variant="contained" onClick={send} disabled={pending || !input.trim()} sx={{ minWidth: 80 }}>
+        <Button variant="contained" onClick={() => send()} disabled={pending || !input.trim()} sx={{ minWidth: 80 }}>
           Send
         </Button>
       </Box>

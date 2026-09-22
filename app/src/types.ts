@@ -8,6 +8,7 @@ export interface CaptureSource {
   name?: string
   uploadId?: string
   chunkIndex?: number
+  summary?: string // AI summary of the whole document, stored on the first chunk
 }
 
 export interface CaptureInput {

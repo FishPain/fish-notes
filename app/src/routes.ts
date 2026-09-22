@@ -17,7 +17,7 @@ export const routes = (
 ): void => {
   const api = Router()
   api.use(requireToken(token))
-  api.use('/capture', captureController(db))
+  api.use('/capture', captureController(db, generate))
   api.use('/search', searchController(db))
   api.use('/ask', askController(db, generate))
   api.use('/canvas', canvasController(db, generateMarkdown))

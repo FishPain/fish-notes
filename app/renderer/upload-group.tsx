@@ -8,7 +8,7 @@ import { api } from './engine.js'
 interface Chunk {
   id: number
   content: string
-  source: { chunkIndex?: number }
+  source: { chunkIndex?: number; summary?: string }
 }
 
 // One row per uploaded document: name + chunk count, expandable, delete-whole-document.
@@ -20,6 +20,7 @@ export const UploadGroup = ({ uploadId, name, chunks }: { uploadId: string; name
     onSuccess: () => qc.invalidateQueries({ queryKey: ['captures'] })
   })
   const sorted = [...chunks].sort((a, b) => (a.source.chunkIndex ?? 0) - (b.source.chunkIndex ?? 0))
+  const summary = chunks.find((c) => c.source.summary)?.source.summary
 
   return (
     <Card sx={{ mb: 1 }}>
@@ -42,6 +43,11 @@ export const UploadGroup = ({ uploadId, name, chunks }: { uploadId: string; name
             <FontAwesomeIcon icon={faTrash} style={{ fontSize: 13 }} />
           </IconButton>
         </Stack>
+        {summary && (
+          <Typography variant="body2" sx={{ mt: 1, ml: 4.5, opacity: 0.8 }}>
+            {summary}
+          </Typography>
+        )}
         <Collapse in={open}>
           <Box sx={{ mt: 1, pl: 4 }}>
             {sorted.map((c) => (

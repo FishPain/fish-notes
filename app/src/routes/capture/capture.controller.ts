@@ -8,7 +8,9 @@ import { validateBody } from '../../utils/validate.js'
 import { insertCapture, listCaptures, deleteCapture, deleteUpload } from '../../capture.service.js'
 import { ocrImage } from '../../ai/ocr.js'
 import { chunkText } from '../../chunk.js'
-import { CaptureInput } from '../../types.js'
+import { isSubtitles, cleanTranscript } from '../../transcript.js'
+import { GenerateFn } from '../../ask.service.js'
+import { CaptureInput, CaptureSource } from '../../types.js'
 
 const CaptureSchema = object({
   content: string().trim().required(),
@@ -30,7 +32,20 @@ const CaptureSchema = object({
 const ScreenSchema = object({ pngBase64: string().required() })
 const UploadSchema = object({ name: string().trim().required(), text: string().required() })
 
-export const captureController = (db: Database.Database): Router => {
+// Best-effort 2-3 sentence summary of an uploaded doc; '' if the model call fails.
+const summarize = async (generate: GenerateFn, name: string, text: string): Promise<string> => {
+  try {
+    return (
+      await generate(
+        `Summarize this document in 2-3 sentences for a browsing list. Output only the summary.\n\nTITLE: ${name}\n\n${text.slice(0, 16000)}`
+      )
+    ).trim()
+  } catch {
+    return ''
+  }
+}
+
+export const captureController = (db: Database.Database, generate: GenerateFn): Router => {
   const router = Router()
 
   router.post(
@@ -71,21 +86,22 @@ export const captureController = (db: Database.Database): Router => {
     asyncHandler(async (req, res) => {
       const body = await validateBody(UploadSchema, req.body, res)
       if (!body) return
-      const chunks = chunkText(body.text)
+      // Subtitle files are mostly timestamps/cue noise — strip to plain text first.
+      const text = isSubtitles(body.name, body.text) ? cleanTranscript(body.text) : body.text
+      const chunks = chunkText(text)
       if (chunks.length === 0) {
         throwHttpError(httpErrors.badRequest, Reason.MissingOrInvalidFields, res)
         return
       }
       const uploadId = randomUUID()
       const capturedAt = new Date().toISOString()
-      // Sequential: keeps embed calls friendly to the proxy's rate limit.
+      const summary = await summarize(generate, body.name, text)
+      // Sequential: keeps embed calls friendly to the proxy's rate limit. The whole-doc
+      // summary rides on the first chunk's source so the UI can show it per document.
       for (let i = 0; i < chunks.length; i++) {
-        await insertCapture(db, {
-          content: chunks[i],
-          source: { type: 'upload', name: body.name, uploadId, chunkIndex: i },
-          tags: [],
-          capturedAt
-        })
+        const source: CaptureSource = { type: 'upload', name: body.name, uploadId, chunkIndex: i }
+        if (i === 0 && summary) source.summary = summary
+        await insertCapture(db, { content: chunks[i], source, tags: [], capturedAt })
       }
       res.status(201).json({ uploadId, chunks: chunks.length })
     })

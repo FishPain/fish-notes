@@ -1,14 +1,15 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Box, TextField, Typography, Card, CardContent, Button, Stack, Chip, IconButton, CircularProgress } from '@mui/material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faTrash, faCamera, faDownload } from '@fortawesome/free-solid-svg-icons'
+import { faTrash, faCamera, faDownload, faUpload } from '@fortawesome/free-solid-svg-icons'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useUi } from './store.js'
 import { api } from './engine.js'
 import { proseSx } from './prose.js'
 import { StatusCard } from './status-card.js'
+import { UploadGroup } from './upload-group.js'
 import { CanvasList } from './canvas-list.js'
 import { CanvasView } from './canvas-view.js'
 
@@ -17,7 +18,7 @@ interface Capture {
   content: string
   note: string
   tags: string[]
-  source: { type?: string; url?: string; anchor?: string }
+  source: { type?: string; url?: string; anchor?: string; name?: string; uploadId?: string; chunkIndex?: number }
   screenshot?: string | null
 }
 interface SearchHit {
@@ -44,6 +45,11 @@ const CaptureCard = ({ capture }: { capture: Capture }): React.ReactElement => {
       <CardContent>
         <Stack direction="row" alignItems="flex-start" spacing={1}>
           <Box sx={{ flex: 1, minWidth: 0 }}>
+            {capture.source.type === 'upload' && capture.source.name && (
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
+                📄 {capture.source.name}
+              </Typography>
+            )}
             {capture.source.type === 'screen' ? (
               <Box sx={{ overflowX: 'auto', ...proseSx }}>
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{capture.content}</ReactMarkdown>
@@ -104,9 +110,15 @@ const CaptureCard = ({ capture }: { capture: Capture }): React.ReactElement => {
 }
 
 const SearchView = (): React.ReactElement => {
-  const { query, setQuery, selecting, ocrJobs, captureScreen } = useUi()
+  const { query, setQuery, selecting, ocrJobs, uploadJobs, captureScreen, uploadDoc } = useUi()
   const [asked, setAsked] = useState<AskResult | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
   const searching = query.trim().length > 0
+
+  const onFiles = async (files: FileList | null): Promise<void> => {
+    for (const f of Array.from(files ?? [])) uploadDoc(f.name, await f.text())
+    if (fileRef.current) fileRef.current.value = '' // allow re-selecting the same file
+  }
 
   // Live search is traditional keyword (FTS) — fast, local, no embeddings — so it
   // can fire per keystroke. Embeddings are reserved for Ask (grounding the answer).
@@ -125,7 +137,7 @@ const SearchView = (): React.ReactElement => {
   // When an OCR job finishes (ocrJobs shrinks), pull the fresh capture in promptly
   // rather than waiting for the 4s poll. (captureScreen lives in the store, outside
   // React Query, so it can't invalidate itself.)
-  const jobCount = ocrJobs.length
+  const jobCount = ocrJobs.length + uploadJobs.length
   useEffect(() => {
     if (!searching) all.refetch()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -134,6 +146,17 @@ const SearchView = (): React.ReactElement => {
   const shown: Capture[] = searching
     ? (results.data || []).map((h) => h.capture)
     : all.data || []
+
+  // Browse view groups uploaded chunks by document; search view shows chunks individually.
+  const uploadGroups = new Map<string, Capture[]>()
+  const singles: Capture[] = []
+  if (!searching) {
+    for (const c of shown) {
+      const uid = c.source.uploadId
+      if (c.source.type === 'upload' && uid) uploadGroups.set(uid, [...(uploadGroups.get(uid) ?? []), c])
+      else singles.push(c)
+    }
+  }
 
   const askMut = useMutation({
     mutationFn: () =>
@@ -148,15 +171,33 @@ const SearchView = (): React.ReactElement => {
     <Box sx={{ flex: 1, overflow: 'auto', maxWidth: 900, mx: 'auto', p: 3 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
         <Typography variant="h4">Notes</Typography>
-        <Button
-          variant="outlined"
-          startIcon={selecting ? <CircularProgress size={16} color="inherit" /> : <FontAwesomeIcon icon={faCamera} />}
-          onClick={captureScreen}
-          disabled={selecting}
-          sx={{ textTransform: 'none' }}
-        >
-          Capture screen{ocrJobs.length ? ` (${ocrJobs.length})` : ''}
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button
+            variant="outlined"
+            startIcon={<FontAwesomeIcon icon={faUpload} />}
+            onClick={() => fileRef.current?.click()}
+            sx={{ textTransform: 'none' }}
+          >
+            Upload{uploadJobs.length ? ` (${uploadJobs.length})` : ''}
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            hidden
+            multiple
+            accept=".txt,.md,.markdown,.vtt,.srt,.text,text/plain"
+            onChange={(e) => onFiles(e.target.files)}
+          />
+          <Button
+            variant="outlined"
+            startIcon={selecting ? <CircularProgress size={16} color="inherit" /> : <FontAwesomeIcon icon={faCamera} />}
+            onClick={captureScreen}
+            disabled={selecting}
+            sx={{ textTransform: 'none' }}
+          >
+            Capture screen{ocrJobs.length ? ` (${ocrJobs.length})` : ''}
+          </Button>
+        </Stack>
       </Stack>
       <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
         <TextField
@@ -196,16 +237,24 @@ const SearchView = (): React.ReactElement => {
       {ocrJobs.map((id) => (
         <StatusCard key={`ocr-${id}`} label="Reading text from screenshot…" />
       ))}
+      {uploadJobs.map((j) => (
+        <StatusCard key={`up-${j.id}`} label={`Embedding "${j.name}"…`} />
+      ))}
 
-      {shown.length === 0 && ocrJobs.length === 0 && (
+      {shown.length === 0 && ocrJobs.length === 0 && uploadJobs.length === 0 && (
         <Typography variant="body2" sx={{ opacity: 0.5 }}>
-          {searching ? 'No matches.' : 'No captures yet — clip something with the extension.'}
+          {searching ? 'No matches.' : 'No captures yet — clip, capture, or upload something.'}
         </Typography>
       )}
 
-      {shown.map((capture) => (
-        <CaptureCard key={capture.id} capture={capture} />
-      ))}
+      {searching
+        ? shown.map((capture) => <CaptureCard key={capture.id} capture={capture} />)
+        : [
+            ...[...uploadGroups.entries()].map(([uid, chunks]) => (
+              <UploadGroup key={uid} uploadId={uid} name={chunks[0].source.name || 'Document'} chunks={chunks} />
+            )),
+            ...singles.map((capture) => <CaptureCard key={capture.id} capture={capture} />)
+          ]}
 
       <Typography variant="caption" sx={{ display: 'block', mt: 3, opacity: 0.5 }}>
         Extension token: {window.engine.token} · endpoint {window.engine.baseUrl}

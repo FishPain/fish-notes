@@ -1,9 +1,13 @@
 export interface CaptureSource {
-  type: 'web' | 'app' | 'screen'
+  type: 'web' | 'app' | 'screen' | 'upload'
   url?: string
   anchor?: string
   appName?: string
   windowTitle?: string
+  // Uploaded-document chunks: filename, shared id per upload, and chunk position.
+  name?: string
+  uploadId?: string
+  chunkIndex?: number
 }
 
 export interface CaptureInput {

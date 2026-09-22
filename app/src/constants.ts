@@ -43,3 +43,6 @@ export const EMBEDDING = {
 
 // How many captures are retrieved to ground Ask / draft / /llm.
 export const RETRIEVAL = { k: Number(process.env.CANVAS_RETRIEVE_K) || 12 }
+
+// Uploaded documents are split into overlapping chunks (~chars each) before embedding.
+export const CHUNK = { chars: 3000, overlap: 200 }

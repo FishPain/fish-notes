@@ -3,9 +3,11 @@ import { object, string, array } from 'yup'
 import Database from 'better-sqlite3'
 import { httpErrors, Reason, throwHttpError } from '../../utils/http-errors.js'
 import { asyncHandler } from '../../utils/async-handler.js'
+import { randomUUID } from 'node:crypto'
 import { validateBody } from '../../utils/validate.js'
-import { insertCapture, listCaptures, deleteCapture } from '../../capture.service.js'
+import { insertCapture, listCaptures, deleteCapture, deleteUpload } from '../../capture.service.js'
 import { ocrImage } from '../../ai/ocr.js'
+import { chunkText } from '../../chunk.js'
 import { CaptureInput } from '../../types.js'
 
 const CaptureSchema = object({
@@ -26,6 +28,7 @@ const CaptureSchema = object({
 })
 
 const ScreenSchema = object({ pngBase64: string().required() })
+const UploadSchema = object({ name: string().trim().required(), text: string().required() })
 
 export const captureController = (db: Database.Database): Router => {
   const router = Router()
@@ -62,7 +65,39 @@ export const captureController = (db: Database.Database): Router => {
     })
   )
 
+  // Upload a document: chunk it, embed + store each chunk as an 'upload' capture.
+  router.post(
+    '/upload',
+    asyncHandler(async (req, res) => {
+      const body = await validateBody(UploadSchema, req.body, res)
+      if (!body) return
+      const chunks = chunkText(body.text)
+      if (chunks.length === 0) {
+        throwHttpError(httpErrors.badRequest, Reason.MissingOrInvalidFields, res)
+        return
+      }
+      const uploadId = randomUUID()
+      const capturedAt = new Date().toISOString()
+      // Sequential: keeps embed calls friendly to the proxy's rate limit.
+      for (let i = 0; i < chunks.length; i++) {
+        await insertCapture(db, {
+          content: chunks[i],
+          source: { type: 'upload', name: body.name, uploadId, chunkIndex: i },
+          tags: [],
+          capturedAt
+        })
+      }
+      res.status(201).json({ uploadId, chunks: chunks.length })
+    })
+  )
+
   router.get('/', (_req, res) => res.json(listCaptures(db)))
+
+  // Delete every chunk of one uploaded document.
+  router.delete('/upload/:uploadId', (req, res) => {
+    deleteUpload(db, req.params.uploadId)
+    res.status(204).end()
+  })
 
   // Idempotent: deleting a missing id is a no-op and still 204.
   router.delete('/:id', (req, res) => {

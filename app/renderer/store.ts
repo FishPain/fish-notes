@@ -10,11 +10,13 @@ interface UiState {
   pendingDraftId: number | null
   selecting: boolean // native region selector is open (button disabled)
   ocrJobs: number[] // in-flight OCR jobs (each renders a "reading…" card)
+  uploadJobs: { id: number; name: string }[] // in-flight document uploads
   setQuery: (query: string) => void
   setPendingDraft: (id: number | null) => void
   openSearch: () => void
   openCanvas: (id: number) => void
   captureScreen: () => Promise<void>
+  uploadDoc: (name: string, text: string) => Promise<void>
 }
 
 export const useUi = create<UiState>((set, get) => ({
@@ -24,6 +26,7 @@ export const useUi = create<UiState>((set, get) => ({
   pendingDraftId: null,
   selecting: false,
   ocrJobs: [],
+  uploadJobs: [],
   setQuery: (query) => set({ query }),
   setPendingDraft: (id) => set({ pendingDraftId: id }),
   openSearch: () => set({ view: 'search', selectedCanvasId: null }),
@@ -56,6 +59,19 @@ export const useUi = create<UiState>((set, get) => ({
       window.alert('Could not read text from that screenshot — try a clearer region.')
     } finally {
       set((s) => ({ ocrJobs: s.ocrJobs.filter((x) => x !== id) }))
+    }
+  },
+
+  // Upload a text document: the engine chunks + embeds it in the background.
+  uploadDoc: async (name, text) => {
+    const id = ++jobSeq
+    set((s) => ({ uploadJobs: [...s.uploadJobs, { id, name }] }))
+    try {
+      await api.request('/capture/upload', { method: 'POST', body: JSON.stringify({ name, text }) })
+    } catch {
+      window.alert(`Could not upload "${name}".`)
+    } finally {
+      set((s) => ({ uploadJobs: s.uploadJobs.filter((j) => j.id !== id) }))
     }
   }
 }))

@@ -66,3 +66,11 @@ export const deleteCapture = (db: Database.Database, id: number): void => {
   db.prepare('DELETE FROM captures_fts WHERE capture_id = ?').run(id)
   db.prepare('DELETE FROM vec_captures WHERE capture_id = ?').run(id)
 }
+
+// Delete every chunk-capture belonging to one uploaded document.
+export const deleteUpload = (db: Database.Database, uploadId: string): void => {
+  const rows = db
+    .prepare("SELECT id FROM captures WHERE json_extract(source, '$.uploadId') = ?")
+    .all(uploadId) as { id: number }[]
+  for (const { id } of rows) deleteCapture(db, id)
+}

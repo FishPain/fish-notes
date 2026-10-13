@@ -161,11 +161,10 @@ export const CanvasList = (): React.ReactElement => {
       <ListItemButton onClick={() => setSettingsOpen(true)} sx={{ borderRadius: 2, mt: 1, flexGrow: 0 }}>
         <FontAwesomeIcon icon={faGear} style={{ opacity: 0.7 }} />
         <ListItemText primary="Settings" sx={{ ml: 1.5 }} />
+        <Typography variant="caption" sx={{ opacity: 0.4 }}>
+          v{window.appInfo.version}
+        </Typography>
       </ListItemButton>
-
-      <Typography variant="caption" sx={{ textAlign: 'center', opacity: 0.4, mt: 0.5 }}>
-        v{window.appInfo.version}
-      </Typography>
 
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 

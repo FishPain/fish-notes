@@ -56,7 +56,7 @@ export const useUi = create<UiState>((set, get) => ({
   // the actual OCR + store happens on confirm (see confirmCapture). Uses window.engine
   // directly (no query client).
   captureScreen: async () => {
-    if (get().selecting) return // don't open two selectors at once
+    if (get().selecting || get().pendingCapture) return // one selector at a time; don't clobber a capture still awaiting confirmation
     set({ selecting: true })
     let shot: { cancelled?: boolean; pngBase64?: string; error?: string; appName?: string; url?: string; windowTitle?: string }
     try {

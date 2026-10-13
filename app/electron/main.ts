@@ -19,7 +19,33 @@ const SCREEN_SETTINGS = 'x-apple.systempreferences:com.apple.preference.security
 // - { cancelled } if the user presses Esc (no file written)
 // - { error: 'permission' } if Screen Recording permission is missing (the classic
 //   "could not create image from rect" failure) — we also open the settings pane.
-const captureRegion = (): Promise<{ cancelled?: boolean; pngBase64?: string; error?: string }> => {
+// Run an AppleScript, returning trimmed stdout, or '' on any error (3s cap).
+const osa = (script: string): Promise<string> =>
+  new Promise((resolve) => {
+    execFile('osascript', ['-e', script], { timeout: 3000 }, (err, stdout) => resolve(err ? '' : stdout.trim()))
+  })
+
+// Chromium browsers share one AppleScript dictionary ("active tab of front window").
+const CHROMIUM = ['Google Chrome', 'Google Chrome Canary', 'Brave Browser', 'Microsoft Edge', 'Vivaldi']
+
+// Best-effort: the frontmost app, and for a browser its active-tab URL + title.
+// Any failure (not a browser, no window, Automation permission denied) → empty fields.
+// Must be read BEFORE screencapture launches, which itself becomes the frontmost process.
+const detectSource = async (): Promise<{ appName?: string; url?: string; windowTitle?: string }> => {
+  const appName = await osa('tell application "System Events" to get name of first process whose frontmost is true')
+  if (!appName) return {}
+  let raw = ''
+  if (CHROMIUM.includes(appName)) {
+    raw = await osa(`tell application "${appName}" to get (URL of active tab of front window) & linefeed & (title of active tab of front window)`)
+  } else if (appName === 'Safari') {
+    raw = await osa('tell application "Safari" to get (URL of front document) & linefeed & (name of front document)')
+  }
+  const [url, windowTitle] = raw.split('\n')
+  return { appName, url: url || undefined, windowTitle: windowTitle || undefined }
+}
+
+const captureRegion = async (): Promise<{ cancelled?: boolean; pngBase64?: string; error?: string; appName?: string; url?: string; windowTitle?: string }> => {
+  const detected = await detectSource()
   const tmp = join(app.getPath('temp'), `fishnotes-${Date.now()}.png`)
   return new Promise((resolve) => {
     execFile('screencapture', ['-i', tmp], async (err) => {
@@ -38,7 +64,7 @@ const captureRegion = (): Promise<{ cancelled?: boolean; pngBase64?: string; err
         const png = await readFile(tmp)
         await rm(tmp, { force: true })
         console.log(`capture-region: captured ${Math.round(png.length / 1024)}kb`)
-        resolve({ pngBase64: png.toString('base64') })
+        resolve({ pngBase64: png.toString('base64'), ...detected })
       } catch {
         console.log('capture-region: no file (cancelled)')
         resolve({ cancelled: true }) // no file → user cancelled selection

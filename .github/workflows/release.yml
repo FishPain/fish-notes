@@ -1,7 +1,11 @@
 name: Release
 
-# Manual-only CD: build the macOS DMG and publish it as a GitHub release.
+# CD: build the macOS DMG and publish it as a GitHub release. Trigger either by
+# pushing a v* tag (e.g. `git tag v0.2.0 && git push origin v0.2.0`) or manually.
 on:
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
       tag:
@@ -35,8 +39,12 @@ jobs:
         env:
           INPUT_TAG: ${{ inputs.tag }}
         run: |
-          VERSION=$(node -p "require('./package.json').version")
-          TAG="${INPUT_TAG:-v$VERSION}"
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            TAG="$GITHUB_REF_NAME"           # triggered by pushing a v* tag
+          else
+            VERSION=$(node -p "require('./package.json').version")
+            TAG="${INPUT_TAG:-v$VERSION}"    # manual run: input, else package.json version
+          fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
       - name: Publish release
         env:

@@ -42,10 +42,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.meta.outputs.tag }}
+          REPO: ${{ github.repository }}
         run: |
-          NOTES="Automated release. macOS DMG is ad-hoc signed — on first launch, right-click the app → Open to bypass Gatekeeper."
           if gh release view "$TAG" >/dev/null 2>&1; then
+            # Re-run on an existing tag: just refresh the DMG, keep the notes.
             gh release upload "$TAG" dist/*.dmg --clobber
           else
-            gh release create "$TAG" --target "$GITHUB_SHA" --title "Fish Notes $TAG" --notes "$NOTES" dist/*.dmg
+            # Changelog: GitHub auto-generates "what changed" from PRs/commits merged
+            # since the previous release. Written to a file to avoid shell-escaping PR titles.
+            CAVEAT="macOS DMG is ad-hoc signed — on first launch, right-click the app → Open to bypass Gatekeeper."
+            CHANGELOG=$(gh api "repos/$REPO/releases/generate-notes" -f tag_name="$TAG" -f target_commitish="$GITHUB_SHA" --jq .body)
+            printf '%s\n\n%s\n' "$CAVEAT" "$CHANGELOG" > /tmp/release-notes.md
+            gh release create "$TAG" --target "$GITHUB_SHA" --title "Fish Notes $TAG" --notes-file /tmp/release-notes.md dist/*.dmg
           fi

@@ -1,9 +1,9 @@
 # Fish Notes
 
 A search-first desktop app for turning everything you read into **grounded, searchable
-knowledge**. Clip text from the web (browser extension) or capture any region of your
-screen (OCR), and it all lands in one local, searchable corpus. Write **notes** that the
-AI can draft and extend — grounded in what you actually captured.
+knowledge**. Capture any region of your screen (OCR) — the source app and page URL are
+detected automatically — and it all lands in one local, searchable corpus. Write **notes**
+that the AI can draft and extend — grounded in what you actually captured.
 
 Everything is local: a SQLite corpus with full-text search + vector embeddings. The LLM
 runs through **your** OpenAI-compatible endpoint (a proxy, OpenAI, or anything that speaks
@@ -14,9 +14,9 @@ the same API) — configured in-app, no key baked into the build.
 ## How it works
 
 ```
- Browser extension  ─┐
- Screen capture (OCR) ├─▶  Engine (127.0.0.1)  ─▶  SQLite: FTS5 + sqlite-vec
- Manual notes        ─┘        │                       │
+ Screen capture (OCR) ─┐
+ Manual notes         ─┴─▶  Engine (127.0.0.1)  ─▶  SQLite: FTS5 + sqlite-vec
+                               │                       │
                                ├─ keyword / hybrid search
                                ├─ grounded "ask" (RAG)
                                └─ note drafting + inline /llm
@@ -57,17 +57,6 @@ npm run package    # → app/dist/Fish Notes-<version>-arm64.dmg (ad-hoc signed)
 
 The packaged app is ad-hoc signed for local use. It does **not** bundle your API key —
 enter it in Settings after install.
-
-### Browser extension (optional capture source)
-
-```bash
-cd capturer
-npm install
-npm run build      # bundles extension/content.js + background.js
-```
-
-Then load `capturer/extension/` as an unpacked extension — see
-[`capturer/README.md`](./capturer/README.md).
 
 ## Development
 

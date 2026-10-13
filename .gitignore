@@ -11,5 +11,3 @@ out/
 !.env.example
 .superpowers/
 .claude/
-capturer/extension/content.js
-capturer/extension/background.js

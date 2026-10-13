@@ -238,9 +238,6 @@ const SearchView = (): React.ReactElement => {
             ...singles.map((capture) => <CaptureCard key={capture.id} capture={capture} />)
           ]}
 
-      <Typography variant="caption" sx={{ display: 'block', mt: 3, opacity: 0.5 }}>
-        Extension token: {window.engine.token} · endpoint {window.engine.baseUrl}
-      </Typography>
     </Box>
   )
 }

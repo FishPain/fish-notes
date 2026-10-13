@@ -70,8 +70,12 @@ export const useUi = create<UiState>((set, get) => ({
     set((s) => ({ ocrJobs: [...s.ocrJobs, id] }))
     try {
       await api.request('/capture/screen', { method: 'POST', body: JSON.stringify({ pngBase64: shot.pngBase64 }) })
-    } catch {
-      window.alert('Could not read text from that screenshot — try a clearer region.')
+    } catch (e) {
+      window.alert(
+        e instanceof Error && e.message.includes('401')
+          ? 'Screen capture needs AI credentials — add your API key in Settings.'
+          : 'Could not read text from that screenshot — try a clearer region.'
+      )
     } finally {
       set((s) => ({ ocrJobs: s.ocrJobs.filter((x) => x !== id) }))
     }

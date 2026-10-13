@@ -11,6 +11,7 @@ import { chunkText } from '../../chunk.js'
 import { isSubtitles, cleanTranscript } from '../../transcript.js'
 import { GenerateFn } from '../../ask.service.js'
 import { CaptureInput, CaptureSource } from '../../types.js'
+import { AI } from '../../constants.js'
 
 const CaptureSchema = object({
   content: string().trim().required(),
@@ -64,7 +65,21 @@ export const captureController = (db: Database.Database, generate: GenerateFn): 
     asyncHandler(async (req, res) => {
       const body = await validateBody(ScreenSchema, req.body, res)
       if (!body) return
-      const text = await ocrImage(body.pngBase64)
+      if (!AI.openaiApiKey) {
+        throwHttpError(httpErrors.unauthorized, Reason.Unauthorized, res)
+        return
+      }
+      let text: string
+      try {
+        text = await ocrImage(body.pngBase64)
+      } catch (err) {
+        // Proxy rejected the key → 401, so the UI says "credentials" not "unreadable".
+        if (err instanceof Error && /\b(401|403)\b/.test(err.message)) {
+          throwHttpError(httpErrors.unauthorized, Reason.Unauthorized, res)
+          return
+        }
+        throw err
+      }
       if (!text.trim()) {
         throwHttpError(httpErrors.badRequest, Reason.MissingOrInvalidFields, res)
         return

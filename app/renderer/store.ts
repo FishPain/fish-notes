@@ -51,9 +51,10 @@ export const useUi = create<UiState>((set, get) => ({
   clearPendingChatQuestion: () => set({ pendingChatQuestion: null }),
   openCanvas: (id) => set({ view: 'canvas', selectedCanvasId: id }),
 
-  // Shared by the "Capture screen" button and the global shortcut. Phase 1 (region
-  // select) blocks briefly; phase 2 (OCR + store) runs in the background so you can
-  // capture the next one immediately. Uses window.engine directly (no query client).
+  // Shared by the "Capture screen" button and the global shortcut. The region select
+  // blocks briefly, then we stash the shot as pendingCapture to open the confirm dialog;
+  // the actual OCR + store happens on confirm (see confirmCapture). Uses window.engine
+  // directly (no query client).
   captureScreen: async () => {
     if (get().selecting) return // don't open two selectors at once
     set({ selecting: true })

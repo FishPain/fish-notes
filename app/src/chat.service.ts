@@ -24,7 +24,11 @@ const buildPrompt = (messages: ChatMessage[], captures: Capture[]): string => {
     .slice(-HISTORY_LIMIT)
     .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
     .join('\n')
-  return `You are a helpful assistant answering from the user's saved sources. Use ONLY the numbered SOURCES for facts and cite them by number like [1]. If the sources don't contain the answer, say so. Continue the conversation naturally.
+  return `You are a helpful assistant in the user's notes app. Their saved SOURCES (retrieved for this turn) are below.
+
+- If the question relates to the sources, ground your answer in them and cite the ones you use by number like [1].
+- If it's a general question the sources don't cover, just answer it normally from your own knowledge. Do NOT mention the sources or point out that they lack the info — only say a source doesn't contain something when the user is clearly asking about their saved material.
+- Only cite a source you actually used.
 
 SOURCES:
 ${sources}

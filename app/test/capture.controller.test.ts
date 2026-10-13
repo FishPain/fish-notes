@@ -53,7 +53,7 @@ describe('POST /capture/screen', () => {
     expect(cap.content).toBe('OCR TEXT')
     expect(cap.source).toMatchObject({ type: 'screen', url: 'https://example.com/page', appName: 'Google Chrome', windowTitle: 'Example Page' })
     expect(cap.note).toBe('why this matters')
-    expect(cap.contextText).toBe('Example Page')
+    expect(cap.contextText).toBe('Example Page — https://example.com/page')
 
     server.close()
   })

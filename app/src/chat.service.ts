@@ -34,22 +34,31 @@ ${convo}
 Assistant:`
 }
 
-// Answer the latest user turn, grounded in retrieved captures. docIds (uploadIds)
-// scope retrieval to specific uploaded documents.
+// Answer the latest user turn, grounded in retrieved captures. `focusRefs` scope
+// retrieval to specific sources: an uploadId focuses a whole uploaded document; a
+// "capture:<id>" ref focuses a single capture (e.g. a screenshot).
 export const chatAnswer = async (
   db: Database.Database,
   messages: ChatMessage[],
   generate: GenerateFn,
-  docIds?: string[]
+  focusRefs?: string[]
 ): Promise<ChatResult> => {
   const query = [...messages].reverse().find((m) => m.role === 'user')?.content ?? ''
-  const scoped = docIds && docIds.length > 0
+  const scoped = focusRefs != null && focusRefs.length > 0
+  const captureIds = new Set((focusRefs ?? []).filter((r) => r.startsWith('capture:')).map((r) => Number(r.slice(8))))
+  const uploadIds = new Set((focusRefs ?? []).filter((r) => !r.startsWith('capture:')))
   const hits = await hybridSearch(db, query, scoped ? RETRIEVAL.k * 5 : RETRIEVAL.k)
-  const kept = (scoped ? hits.filter((h) => docIds!.includes(h.capture.source.uploadId ?? '')) : hits).slice(
-    0,
-    RETRIEVAL.k
-  )
-  const citations = kept.map((h) => h.capture)
-  const answer = await generate(buildPrompt(messages, citations))
+  const kept = (
+    scoped
+      ? hits.filter((h) => uploadIds.has(h.capture.source.uploadId ?? '') || captureIds.has(h.capture.id))
+      : hits
+  ).slice(0, RETRIEVAL.k)
+  const retrieved = kept.map((h) => h.capture)
+  const answer = await generate(buildPrompt(messages, retrieved))
+  // Only surface sources the answer actually cited by [n]; drop the rest so an answer
+  // like "I don't have that" doesn't show a stray, irrelevant source chip.
+  // ponytail: relies on the model bracket-citing (the prompt mandates it).
+  const cited = new Set([...answer.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])))
+  const citations = retrieved.filter((_c, i) => cited.has(i + 1))
   return { answer, citations }
 }

@@ -11,7 +11,8 @@ import { proseSx } from './prose.js'
 
 interface Capture {
   id: number
-  source: { type?: string; url?: string; name?: string; uploadId?: string }
+  content: string
+  source: { type?: string; url?: string; name?: string; uploadId?: string; appName?: string; windowTitle?: string }
 }
 interface Citation {
   id: number
@@ -79,9 +80,26 @@ interface Msg {
   content: string
   citations?: Citation[]
 }
-interface DocOption {
-  uploadId: string
-  name: string
+// A source the chat can be focused on. `ref` is persisted (an uploadId for a whole
+// document, or "capture:<id>" for a single capture); `label` is what the picker shows.
+interface FocusOption {
+  ref: string
+  label: string
+}
+
+// Short identity for a capture in the focus picker (same idea as citationLabel).
+const captureLabel = (c: Capture): string => {
+  if (c.source.name) return c.source.name
+  const appTitle = [c.source.appName, c.source.windowTitle].filter(Boolean).join(' — ')
+  if (appTitle) return appTitle
+  if (c.source.url) {
+    try {
+      return new URL(c.source.url).hostname
+    } catch {
+      return c.source.url
+    }
+  }
+  return c.content.trim().slice(0, 40) || `#${c.id}`
 }
 interface Conversation {
   id: number
@@ -95,7 +113,7 @@ export const ChatView = (): React.ReactElement => {
   const qc = useQueryClient()
   const [messages, setMessages] = useState<Msg[]>([])
   const [input, setInput] = useState('')
-  const [docs, setDocs] = useState<DocOption[]>([])
+  const [docs, setDocs] = useState<FocusOption[]>([])
   const [pending, setPending] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLDivElement>(null)
@@ -111,13 +129,19 @@ export const ChatView = (): React.ReactElement => {
     enabled: selectedChatId != null
   })
 
-  const docOptions: DocOption[] = []
+  // Focusable sources: each uploaded document once (📄, grouped by uploadId), plus every
+  // individual non-upload capture (🖥 screen / 🔖 web). Refs persist in the chat's docIds.
+  const docOptions: FocusOption[] = []
   const seen = new Set<string>()
   for (const c of captures.data ?? []) {
-    const uid = c.source.uploadId
-    if (c.source.type === 'upload' && uid && !seen.has(uid)) {
-      seen.add(uid)
-      docOptions.push({ uploadId: uid, name: c.source.name || 'Document' })
+    if (c.source.type === 'upload') {
+      const uid = c.source.uploadId
+      if (uid && !seen.has(uid)) {
+        seen.add(uid)
+        docOptions.push({ ref: uid, label: `📄 ${c.source.name || 'Document'}` })
+      }
+    } else {
+      docOptions.push({ ref: `capture:${c.id}`, label: `${c.source.type === 'screen' ? '🖥' : '🔖'} ${captureLabel(c)}` })
     }
   }
 
@@ -128,13 +152,13 @@ export const ChatView = (): React.ReactElement => {
       setDocs([])
     } else if (current.data) {
       setMessages(current.data.messages ?? [])
-      setDocs(docOptions.filter((o) => current.data!.docIds.includes(o.uploadId)))
+      setDocs(docOptions.filter((o) => current.data!.docIds.includes(o.ref)))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChatId, current.data])
 
   const persist = async (msgs: Msg[]): Promise<void> => {
-    const docIds = docs.map((d) => d.uploadId)
+    const docIds = docs.map((d) => d.ref)
     if (selectedChatId == null) {
       const title = (msgs.find((m) => m.role === 'user')?.content ?? 'New chat').slice(0, 60)
       const { id } = await api.request<{ id: number }>('/chats', {
@@ -160,7 +184,7 @@ export const ChatView = (): React.ReactElement => {
         method: 'POST',
         body: JSON.stringify({
           messages: withUser.map(({ role, content }) => ({ role, content })),
-          docIds: docs.map((d) => d.uploadId)
+          docIds: docs.map((d) => d.ref)
         })
       })
       const withAnswer: Msg[] = [...withUser, { role: 'assistant', content: res.answer, citations: res.citations }]
@@ -182,13 +206,13 @@ export const ChatView = (): React.ReactElement => {
     mentionQuery == null
       ? []
       : docOptions.filter(
-          (o) => !docs.some((d) => d.uploadId === o.uploadId) && o.name.toLowerCase().includes(mentionQuery.toLowerCase())
+          (o) => !docs.some((d) => d.ref === o.ref) && o.label.toLowerCase().includes(mentionQuery.toLowerCase())
         )
-  const addDoc = (o: DocOption): void => {
+  const addDoc = (o: FocusOption): void => {
     setDocs((d) => [...d, o])
     setInput((t) => t.replace(/@([^@\s]*)$/, ''))
   }
-  const removeDoc = (uid: string): void => setDocs((d) => d.filter((x) => x.uploadId !== uid))
+  const removeDoc = (ref: string): void => setDocs((d) => d.filter((x) => x.ref !== ref))
 
   // Seeded from Sources' Ask: send the question once, into this fresh conversation.
   useEffect(() => {
@@ -259,7 +283,7 @@ export const ChatView = (): React.ReactElement => {
         {docs.length > 0 && (
           <Stack direction="row" spacing={0.5} sx={{ mb: 1, flexWrap: 'wrap' }}>
             {docs.map((d) => (
-              <Chip key={d.uploadId} size="small" label={`📄 ${d.name}`} onDelete={() => removeDoc(d.uploadId)} />
+              <Chip key={d.ref} size="small" label={d.label} onDelete={() => removeDoc(d.ref)} />
             ))}
           </Stack>
         )}
@@ -286,8 +310,8 @@ export const ChatView = (): React.ReactElement => {
         <Popper open={mentionOptions.length > 0} anchorEl={inputRef.current} placement="top-start" style={{ zIndex: 1300 }}>
           <Paper sx={{ width: 320, maxHeight: 240, overflow: 'auto', border: 1, borderColor: 'divider' }}>
             {mentionOptions.map((o) => (
-              <MenuItem key={o.uploadId} onClick={() => addDoc(o)}>
-                📄 {o.name}
+              <MenuItem key={o.ref} onClick={() => addDoc(o)}>
+                {o.label}
               </MenuItem>
             ))}
           </Paper>

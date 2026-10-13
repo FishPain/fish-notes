@@ -30,7 +30,13 @@ const CaptureSchema = object({
   capturedAt: string()
 })
 
-const ScreenSchema = object({ pngBase64: string().required() })
+const ScreenSchema = object({
+  pngBase64: string().required(),
+  url: string().trim(),
+  appName: string().trim(),
+  windowTitle: string().trim(),
+  note: string().trim()
+})
 const UploadSchema = object({ name: string().trim().required(), text: string().required() })
 
 // Best-effort 2-3 sentence summary of an uploaded doc; '' if the model call fails.
@@ -84,9 +90,18 @@ export const captureController = (db: Database.Database, generate: GenerateFn): 
         throwHttpError(httpErrors.badRequest, Reason.MissingOrInvalidFields, res)
         return
       }
+      const source: CaptureSource = { type: 'screen' }
+      if (body.url) source.url = body.url
+      if (body.appName) source.appName = body.appName
+      if (body.windowTitle) source.windowTitle = body.windowTitle
+      // Description + page title ride in contextText so they're embedded + FTS-indexed
+      // with the OCR'd content (same trick the upload flow uses for titles).
+      const contextText = [body.note, body.windowTitle].filter(Boolean).join(' — ')
       const id = await insertCapture(db, {
         content: text,
-        source: { type: 'screen' },
+        contextText,
+        note: body.note || '',
+        source,
         screenshot: `data:image/png;base64,${body.pngBase64}`,
         tags: [],
         capturedAt: new Date().toISOString()

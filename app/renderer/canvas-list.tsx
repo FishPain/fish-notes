@@ -163,6 +163,10 @@ export const CanvasList = (): React.ReactElement => {
         <ListItemText primary="Settings" sx={{ ml: 1.5 }} />
       </ListItemButton>
 
+      <Typography variant="caption" sx={{ textAlign: 'center', opacity: 0.4, mt: 0.5 }}>
+        v{window.appInfo.version}
+      </Typography>
+
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       <Popover

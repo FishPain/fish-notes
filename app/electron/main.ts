@@ -117,7 +117,7 @@ const createWindow = (token: string): void => {
       // electron-vite emits the preload as .mjs (ESM); an ESM preload needs sandbox off.
       preload: join(__dirname, '../preload/preload.mjs'),
       sandbox: false,
-      additionalArguments: [`--engine-token=${token}`, `--engine-port=${PORT}`]
+      additionalArguments: [`--engine-token=${token}`, `--engine-port=${PORT}`, `--app-version=${app.getVersion()}`]
     }
   })
   mainWindow = win

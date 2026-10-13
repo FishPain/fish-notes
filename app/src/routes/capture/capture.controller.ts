@@ -94,10 +94,10 @@ export const captureController = (db: Database.Database, generate: GenerateFn): 
       if (body.url) source.url = body.url
       if (body.appName) source.appName = body.appName
       if (body.windowTitle) source.windowTitle = body.windowTitle
-      // windowTitle + url otherwise live only in the source JSON (not searched), so ride
-      // them in contextText to get embedded + FTS-indexed for retrieval. note is already
-      // indexed via its own column, so it must NOT be duplicated here.
-      const contextText = [body.windowTitle, body.url].filter(Boolean).join(' — ')
+      // appName + windowTitle + url otherwise live only in the source JSON (not searched),
+      // so ride them in contextText to get embedded + FTS-indexed for retrieval. note is
+      // already indexed via its own column, so it must NOT be duplicated here.
+      const contextText = [body.appName, body.windowTitle, body.url].filter(Boolean).join(' — ')
       const id = await insertCapture(db, {
         content: text,
         contextText,

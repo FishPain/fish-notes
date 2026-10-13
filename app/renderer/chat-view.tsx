@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
-  Box, Typography, TextField, Button, Stack, Chip, Autocomplete, CircularProgress, Select, MenuItem, IconButton
+  Box, Typography, TextField, Button, Stack, Chip, Autocomplete, CircularProgress, Select, MenuItem, IconButton, Popover
 } from '@mui/material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -17,7 +17,64 @@ interface Capture {
 }
 interface Citation {
   id: number
-  source: { url?: string; name?: string }
+  content: string
+  source: { type?: string; url?: string; name?: string; appName?: string; windowTitle?: string }
+}
+
+// A short identity for a citation chip: doc name, app/title, URL host, else #id.
+const citationLabel = (c: Citation): string => {
+  if (c.source.name) return c.source.name
+  const appTitle = [c.source.appName, c.source.windowTitle].filter(Boolean).join(' — ')
+  if (appTitle) return appTitle
+  if (c.source.url) {
+    try {
+      return new URL(c.source.url).hostname
+    } catch {
+      return c.source.url
+    }
+  }
+  return `#${c.id}`
+}
+
+// Clickable citation chip: click opens a popover showing which source it is (app/title),
+// the cited text, and a jump-to-source link when the capture has a URL.
+const CitationChip = ({ c }: { c: Citation }): React.ReactElement => {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null)
+  const appTitle = [c.source.appName, c.source.windowTitle].filter(Boolean).join(' — ')
+  return (
+    <>
+      <Chip size="small" label={citationLabel(c)} onClick={(e) => setAnchor(e.currentTarget)} sx={{ cursor: 'pointer' }} />
+      <Popover
+        open={!!anchor}
+        anchorEl={anchor}
+        onClose={() => setAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      >
+        <Box sx={{ p: 1.5, maxWidth: 380 }}>
+          {appTitle && (
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
+              🖥 {appTitle}
+            </Typography>
+          )}
+          <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', maxHeight: 220, overflow: 'auto' }}>
+            {c.content}
+          </Typography>
+          {c.source.url && (
+            <Typography
+              variant="caption"
+              component="a"
+              href={c.source.url}
+              target="_blank"
+              rel="noreferrer"
+              sx={{ color: 'text.secondary', display: 'block', mt: 1 }}
+            >
+              jump to source
+            </Typography>
+          )}
+        </Box>
+      </Popover>
+    </>
+  )
 }
 interface Msg {
   role: 'user' | 'assistant'
@@ -205,7 +262,7 @@ export const ChatView = (): React.ReactElement => {
               {m.citations && m.citations.length > 0 && (
                 <Stack direction="row" spacing={0.5} sx={{ mt: 1, flexWrap: 'wrap' }}>
                   {m.citations.map((c) => (
-                    <Chip key={c.id} size="small" label={c.source.name || c.source.url || `#${c.id}`} />
+                    <CitationChip key={c.id} c={c} />
                   ))}
                 </Stack>
               )}

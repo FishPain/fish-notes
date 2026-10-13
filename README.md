@@ -58,6 +58,19 @@ npm run package    # → app/dist/Fish Notes-<version>-arm64.dmg (ad-hoc signed)
 The packaged app is ad-hoc signed for local use. It does **not** bundle your API key —
 enter it in Settings after install.
 
+### Opening the app (first launch)
+
+The build is **ad-hoc signed** (no paid Apple Developer account), so macOS Gatekeeper
+shows: *"Apple could not verify 'Fish Notes' is free of malware…"*. This is expected for an
+unsigned app — to open it:
+
+1. Try to open **Fish Notes** once, and let it get blocked.
+2. Open **System Settings → Privacy & Security**, scroll down, and click **"Open Anyway"**
+   next to the Fish Notes message, then confirm.
+
+You only need to do this once. (Alternatively, from Terminal:
+`xattr -dr com.apple.quarantine "/Applications/Fish Notes.app"`.)
+
 ## Development
 
 ```bash

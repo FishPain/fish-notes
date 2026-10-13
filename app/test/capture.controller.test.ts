@@ -53,7 +53,29 @@ describe('POST /capture/screen', () => {
     expect(cap.content).toBe('OCR TEXT')
     expect(cap.source).toMatchObject({ type: 'screen', url: 'https://example.com/page', appName: 'Google Chrome', windowTitle: 'Example Page' })
     expect(cap.note).toBe('why this matters')
-    expect(cap.contextText).toBe('why this matters — Example Page')
+    expect(cap.contextText).toBe('Example Page')
+
+    server.close()
+  })
+
+  it('stores note but leaves contextText empty when no windowTitle is posted', async () => {
+    const server = makeServer()
+    const { port } = server.address() as { port: number }
+    const base = `http://localhost:${port}`
+
+    const res = await fetch(`${base}/capture/screen`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ pngBase64: 'QUJD', note: 'standalone note' })
+    })
+    expect(res.status).toBe(201)
+
+    const list = (await (await fetch(`${base}/capture`, { headers })).json()) as Array<{
+      note: string; contextText: string
+    }>
+    const cap = list[0]
+    expect(cap.note).toBe('standalone note')
+    expect(cap.contextText).toBe('')
 
     server.close()
   })

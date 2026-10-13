@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     include: ['test/**/*.test.ts'],
     setupFiles: ['test/setup.ts'],
+    env: { OPENAI_API_KEY: 'test-key' },
     testTimeout: 30000,
     // Native addons (onnxruntime via transformers.js, better-sqlite3/sqlite-vec)
     // can segfault when loaded across parallel workers. One forked process is stable.

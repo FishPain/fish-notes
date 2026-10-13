@@ -94,9 +94,10 @@ export const captureController = (db: Database.Database, generate: GenerateFn): 
       if (body.url) source.url = body.url
       if (body.appName) source.appName = body.appName
       if (body.windowTitle) source.windowTitle = body.windowTitle
-      // Description + page title ride in contextText so they're embedded + FTS-indexed
-      // with the OCR'd content (same trick the upload flow uses for titles).
-      const contextText = [body.note, body.windowTitle].filter(Boolean).join(' — ')
+      // windowTitle otherwise lives only in the source JSON (not searched), so ride it
+      // in contextText to get embedded + FTS-indexed. note is already indexed via its
+      // own column, so it must NOT be duplicated here.
+      const contextText = body.windowTitle || ''
       const id = await insertCapture(db, {
         content: text,
         contextText,

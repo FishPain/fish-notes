@@ -13,6 +13,7 @@ interface UiState {
   selecting: boolean // native region selector is open (button disabled)
   ocrJobs: number[] // in-flight OCR jobs (each renders a "reading…" card)
   uploadJobs: { id: number; name: string }[] // in-flight document uploads
+  pendingCapture: { pngBase64: string; url: string; appName: string; windowTitle: string } | null
   setQuery: (query: string) => void
   setPendingDraft: (id: number | null) => void
   openSearch: () => void
@@ -23,6 +24,8 @@ interface UiState {
   clearPendingChatQuestion: () => void
   openCanvas: (id: number) => void
   captureScreen: () => Promise<void>
+  confirmCapture: (fields: { url: string; appName: string; windowTitle: string; note: string }) => Promise<void>
+  cancelCapture: () => void
   uploadDoc: (name: string, text: string) => Promise<void>
 }
 
@@ -36,6 +39,7 @@ export const useUi = create<UiState>((set, get) => ({
   selecting: false,
   ocrJobs: [],
   uploadJobs: [],
+  pendingCapture: null,
   setQuery: (query) => set({ query }),
   setPendingDraft: (id) => set({ pendingDraftId: id }),
   openSearch: () => set({ view: 'search', selectedCanvasId: null }),
@@ -53,7 +57,7 @@ export const useUi = create<UiState>((set, get) => ({
   captureScreen: async () => {
     if (get().selecting) return // don't open two selectors at once
     set({ selecting: true })
-    let shot: { cancelled?: boolean; pngBase64?: string; error?: string }
+    let shot: { cancelled?: boolean; pngBase64?: string; error?: string; appName?: string; url?: string; windowTitle?: string }
     try {
       shot = await window.capture.region()
     } finally {
@@ -66,10 +70,29 @@ export const useUi = create<UiState>((set, get) => ({
       return
     }
     if (shot.cancelled || !shot.pngBase64) return
+    set({
+      pendingCapture: {
+        pngBase64: shot.pngBase64,
+        url: shot.url || '',
+        appName: shot.appName || '',
+        windowTitle: shot.windowTitle || ''
+      }
+    })
+  },
+
+  // Save the pending capture: OCR + store runs in the background (ocrJobs spinner),
+  // so you can capture the next one immediately.
+  confirmCapture: async ({ url, appName, windowTitle, note }) => {
+    const pending = get().pendingCapture
+    if (!pending) return
+    set({ pendingCapture: null })
     const id = ++jobSeq
     set((s) => ({ ocrJobs: [...s.ocrJobs, id] }))
     try {
-      await api.request('/capture/screen', { method: 'POST', body: JSON.stringify({ pngBase64: shot.pngBase64 }) })
+      await api.request('/capture/screen', {
+        method: 'POST',
+        body: JSON.stringify({ pngBase64: pending.pngBase64, url, appName, windowTitle, note })
+      })
     } catch (e) {
       window.alert(
         e instanceof Error && e.message.includes('401')
@@ -80,6 +103,7 @@ export const useUi = create<UiState>((set, get) => ({
       set((s) => ({ ocrJobs: s.ocrJobs.filter((x) => x !== id) }))
     }
   },
+  cancelCapture: () => set({ pendingCapture: null }),
 
   // Upload a text document: the engine chunks + embeds it in the background.
   uploadDoc: async (name, text) => {

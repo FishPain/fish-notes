@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Box, Button, CssBaseline, ThemeProvider, Typography, createTheme } from '@mui/material'
 import { App } from './app.js'
+import { CaptureDialog } from './capture-dialog.js'
 
 // Re-exported so existing imports (`import { api } from './main.js'`) keep working;
 // the client itself lives in engine.ts to avoid an import cycle with the store.
@@ -86,6 +87,7 @@ createRoot(document.getElementById('root') as HTMLElement).render(
         <CssBaseline />
         <ErrorBoundary>
           <App />
+          <CaptureDialog />
         </ErrorBoundary>
       </ThemeProvider>
     </QueryClientProvider>

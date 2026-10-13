@@ -35,6 +35,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
 declare global {
   interface Window {
     engine: { baseUrl: string; token: string }
+    appInfo: { version: string }
     capture: {
       region: () => Promise<{ cancelled?: boolean; pngBase64?: string; error?: string; appName?: string; url?: string; windowTitle?: string }>
       saveImage: (dataUrl: string, name: string) => Promise<{ saved?: boolean; path?: string; cancelled?: boolean }>

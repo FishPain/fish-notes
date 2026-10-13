@@ -11,6 +11,9 @@ contextBridge.exposeInMainWorld('engine', {
   token: arg('engine-token')
 })
 
+// App version (from package.json via app.getVersion() in main), shown in the sidebar.
+contextBridge.exposeInMainWorld('appInfo', { version: arg('app-version') })
+
 // Native screen-region capture (main runs macOS `screencapture`).
 contextBridge.exposeInMainWorld('capture', {
   region: () => ipcRenderer.invoke('capture-region'),

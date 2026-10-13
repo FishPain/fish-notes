@@ -1,10 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
-  Box, Typography, TextField, Button, Stack, Chip, Autocomplete, CircularProgress, Select, MenuItem, IconButton
+  Box, Typography, TextField, Button, Stack, Chip, CircularProgress, MenuItem, Popover, Popper, Paper
 } from '@mui/material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faPlus, faTrash } from '@fortawesome/free-solid-svg-icons'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useUi } from './store.js'
@@ -13,20 +11,95 @@ import { proseSx } from './prose.js'
 
 interface Capture {
   id: number
-  source: { type?: string; url?: string; name?: string; uploadId?: string }
+  content: string
+  source: { type?: string; url?: string; name?: string; uploadId?: string; appName?: string; windowTitle?: string }
 }
 interface Citation {
   id: number
-  source: { url?: string; name?: string }
+  content: string
+  source: { type?: string; url?: string; name?: string; appName?: string; windowTitle?: string }
+}
+
+// A short identity for a citation chip: doc name, app/title, URL host, else #id.
+const citationLabel = (c: Citation): string => {
+  if (c.source.name) return c.source.name
+  const appTitle = [c.source.appName, c.source.windowTitle].filter(Boolean).join(' — ')
+  if (appTitle) return appTitle
+  if (c.source.url) {
+    try {
+      return new URL(c.source.url).hostname
+    } catch {
+      return c.source.url
+    }
+  }
+  return `#${c.id}`
+}
+
+// Clickable citation chip: click opens a popover showing which source it is (app/title),
+// the cited text, and a jump-to-source link when the capture has a URL.
+const CitationChip = ({ c }: { c: Citation }): React.ReactElement => {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null)
+  const appTitle = [c.source.appName, c.source.windowTitle].filter(Boolean).join(' — ')
+  return (
+    <>
+      <Chip size="small" label={citationLabel(c)} onClick={(e) => setAnchor(e.currentTarget)} sx={{ cursor: 'pointer' }} />
+      <Popover
+        open={!!anchor}
+        anchorEl={anchor}
+        onClose={() => setAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      >
+        <Box sx={{ p: 1.5, maxWidth: 380 }}>
+          {appTitle && (
+            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
+              🖥 {appTitle}
+            </Typography>
+          )}
+          <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', maxHeight: 220, overflow: 'auto' }}>
+            {c.content}
+          </Typography>
+          {c.source.url && (
+            <Typography
+              variant="caption"
+              component="a"
+              href={c.source.url}
+              target="_blank"
+              rel="noreferrer"
+              sx={{ color: 'text.secondary', display: 'block', mt: 1 }}
+            >
+              jump to source
+            </Typography>
+          )}
+        </Box>
+      </Popover>
+    </>
+  )
 }
 interface Msg {
   role: 'user' | 'assistant'
   content: string
   citations?: Citation[]
 }
-interface DocOption {
-  uploadId: string
-  name: string
+// A source the chat can be focused on. `ref` is persisted (an uploadId for a whole
+// document, or "capture:<id>" for a single capture); `label` is what the picker shows.
+interface FocusOption {
+  ref: string
+  label: string
+}
+
+// Short identity for a capture in the focus picker (same idea as citationLabel).
+const captureLabel = (c: Capture): string => {
+  if (c.source.name) return c.source.name
+  const appTitle = [c.source.appName, c.source.windowTitle].filter(Boolean).join(' — ')
+  if (appTitle) return appTitle
+  if (c.source.url) {
+    try {
+      return new URL(c.source.url).hostname
+    } catch {
+      return c.source.url
+    }
+  }
+  return c.content.trim().slice(0, 40) || `#${c.id}`
 }
 interface Conversation {
   id: number
@@ -36,13 +109,14 @@ interface Conversation {
 }
 
 export const ChatView = (): React.ReactElement => {
-  const { selectedChatId, newChat, selectChat, pendingChatQuestion, clearPendingChatQuestion } = useUi()
+  const { selectedChatId, selectChat, pendingChatQuestion, clearPendingChatQuestion } = useUi()
   const qc = useQueryClient()
   const [messages, setMessages] = useState<Msg[]>([])
   const [input, setInput] = useState('')
-  const [docs, setDocs] = useState<DocOption[]>([])
+  const [docs, setDocs] = useState<FocusOption[]>([])
   const [pending, setPending] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLDivElement>(null)
 
   const captures = useQuery({ queryKey: ['captures'], queryFn: () => api.request<Capture[]>('/capture') })
   const conversations = useQuery({
@@ -55,13 +129,19 @@ export const ChatView = (): React.ReactElement => {
     enabled: selectedChatId != null
   })
 
-  const docOptions: DocOption[] = []
+  // Focusable sources: each uploaded document once (📄, grouped by uploadId), plus every
+  // individual non-upload capture (🖥 screen / 🔖 web). Refs persist in the chat's docIds.
+  const docOptions: FocusOption[] = []
   const seen = new Set<string>()
   for (const c of captures.data ?? []) {
-    const uid = c.source.uploadId
-    if (c.source.type === 'upload' && uid && !seen.has(uid)) {
-      seen.add(uid)
-      docOptions.push({ uploadId: uid, name: c.source.name || 'Document' })
+    if (c.source.type === 'upload') {
+      const uid = c.source.uploadId
+      if (uid && !seen.has(uid)) {
+        seen.add(uid)
+        docOptions.push({ ref: uid, label: `📄 ${c.source.name || 'Document'}` })
+      }
+    } else {
+      docOptions.push({ ref: `capture:${c.id}`, label: `${c.source.type === 'screen' ? '🖥' : '🔖'} ${captureLabel(c)}` })
     }
   }
 
@@ -72,13 +152,13 @@ export const ChatView = (): React.ReactElement => {
       setDocs([])
     } else if (current.data) {
       setMessages(current.data.messages ?? [])
-      setDocs(docOptions.filter((o) => current.data!.docIds.includes(o.uploadId)))
+      setDocs(docOptions.filter((o) => current.data!.docIds.includes(o.ref)))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChatId, current.data])
 
   const persist = async (msgs: Msg[]): Promise<void> => {
-    const docIds = docs.map((d) => d.uploadId)
+    const docIds = docs.map((d) => d.ref)
     if (selectedChatId == null) {
       const title = (msgs.find((m) => m.role === 'user')?.content ?? 'New chat').slice(0, 60)
       const { id } = await api.request<{ id: number }>('/chats', {
@@ -104,7 +184,7 @@ export const ChatView = (): React.ReactElement => {
         method: 'POST',
         body: JSON.stringify({
           messages: withUser.map(({ role, content }) => ({ role, content })),
-          docIds: docs.map((d) => d.uploadId)
+          docIds: docs.map((d) => d.ref)
         })
       })
       const withAnswer: Msg[] = [...withUser, { role: 'assistant', content: res.answer, citations: res.citations }]
@@ -118,12 +198,21 @@ export const ChatView = (): React.ReactElement => {
     }
   }
 
-  const deleteCurrent = async (): Promise<void> => {
-    if (selectedChatId == null || !window.confirm('Delete this conversation?')) return
-    await api.request(`/chats/${selectedChatId}`, { method: 'DELETE' })
-    qc.invalidateQueries({ queryKey: ['chats'] })
-    newChat()
+  // @-mention: a trailing "@token" in the input opens a doc picker. ponytail: anchored
+  // to the end of the input, not caret-aware — fine for a chat box; upgrade to caret
+  // tracking if mid-sentence mentions are ever needed.
+  const mentionQuery = input.match(/@([^@\s]*)$/)?.[1] ?? null
+  const mentionOptions =
+    mentionQuery == null
+      ? []
+      : docOptions.filter(
+          (o) => !docs.some((d) => d.ref === o.ref) && o.label.toLowerCase().includes(mentionQuery.toLowerCase())
+        )
+  const addDoc = (o: FocusOption): void => {
+    setDocs((d) => [...d, o])
+    setInput((t) => t.replace(/@([^@\s]*)$/, ''))
   }
+  const removeDoc = (ref: string): void => setDocs((d) => d.filter((x) => x.ref !== ref))
 
   // Seeded from Sources' Ask: send the question once, into this fresh conversation.
   useEffect(() => {
@@ -138,41 +227,9 @@ export const ChatView = (): React.ReactElement => {
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100vh', maxWidth: 900, mx: 'auto', width: '100%' }}>
       <Box sx={{ px: 3, pt: 3, pb: 1 }}>
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-          <Typography variant="h4" sx={{ flex: 1 }}>Chat</Typography>
-          <Select
-            size="small"
-            displayEmpty
-            value={selectedChatId ?? ''}
-            onChange={(e) => selectChat(Number(e.target.value))}
-            sx={{ minWidth: 200 }}
-          >
-            <MenuItem value="" disabled>
-              {conversations.data?.length ? 'History…' : 'No saved chats'}
-            </MenuItem>
-            {(conversations.data ?? []).map((c) => (
-              <MenuItem key={c.id} value={c.id}>{c.title || 'Untitled'}</MenuItem>
-            ))}
-          </Select>
-          <Button size="small" variant="outlined" startIcon={<FontAwesomeIcon icon={faPlus} />} onClick={newChat} sx={{ textTransform: 'none' }}>
-            New
-          </Button>
-          {selectedChatId != null && (
-            <IconButton size="small" aria-label="delete conversation" onClick={deleteCurrent}>
-              <FontAwesomeIcon icon={faTrash} style={{ fontSize: 14 }} />
-            </IconButton>
-          )}
-        </Stack>
-        <Autocomplete
-          multiple
-          size="small"
-          options={docOptions}
-          value={docs}
-          onChange={(_e, v) => setDocs(v)}
-          getOptionLabel={(o) => o.name}
-          isOptionEqualToValue={(a, b) => a.uploadId === b.uploadId}
-          renderInput={(p) => <TextField {...p} placeholder={docs.length ? '' : 'Focus on documents (optional)…'} />}
-        />
+        <Typography variant="h4" noWrap>
+          {selectedChatId != null ? conversations.data?.find((c) => c.id === selectedChatId)?.title || 'Chat' : 'New chat'}
+        </Typography>
       </Box>
 
       <Box sx={{ flex: 1, overflow: 'auto', px: 3 }}>
@@ -205,7 +262,7 @@ export const ChatView = (): React.ReactElement => {
               {m.citations && m.citations.length > 0 && (
                 <Stack direction="row" spacing={0.5} sx={{ mt: 1, flexWrap: 'wrap' }}>
                   {m.citations.map((c) => (
-                    <Chip key={c.id} size="small" label={c.source.name || c.source.url || `#${c.id}`} />
+                    <CitationChip key={c.id} c={c} />
                   ))}
                 </Stack>
               )}
@@ -222,24 +279,43 @@ export const ChatView = (): React.ReactElement => {
         <div ref={endRef} />
       </Box>
 
-      <Box sx={{ p: 3, display: 'flex', gap: 1 }}>
-        <TextField
-          fullWidth
-          multiline
-          maxRows={4}
-          placeholder="Ask a follow-up…"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              send()
-            }
-          }}
-        />
-        <Button variant="contained" onClick={() => send()} disabled={pending || !input.trim()} sx={{ minWidth: 80 }}>
-          Send
-        </Button>
+      <Box sx={{ p: 3 }}>
+        {docs.length > 0 && (
+          <Stack direction="row" spacing={0.5} sx={{ mb: 1, flexWrap: 'wrap' }}>
+            {docs.map((d) => (
+              <Chip key={d.ref} size="small" label={d.label} onDelete={() => removeDoc(d.ref)} />
+            ))}
+          </Stack>
+        )}
+        <Box ref={inputRef} sx={{ display: 'flex', gap: 1 }}>
+          <TextField
+            fullWidth
+            multiline
+            maxRows={4}
+            placeholder="Ask a follow-up…  (@ to focus on a document)"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              // While the @-mention list is open, Enter is handled by the picker, not send.
+              if (e.key === 'Enter' && !e.shiftKey && mentionOptions.length === 0) {
+                e.preventDefault()
+                send()
+              }
+            }}
+          />
+          <Button variant="contained" onClick={() => send()} disabled={pending || !input.trim()} sx={{ minWidth: 80 }}>
+            Send
+          </Button>
+        </Box>
+        <Popper open={mentionOptions.length > 0} anchorEl={inputRef.current} placement="top-start" style={{ zIndex: 1300 }}>
+          <Paper sx={{ width: 320, maxHeight: 240, overflow: 'auto', border: 1, borderColor: 'divider' }}>
+            {mentionOptions.map((o) => (
+              <MenuItem key={o.ref} onClick={() => addDoc(o)}>
+                {o.label}
+              </MenuItem>
+            ))}
+          </Paper>
+        </Popper>
       </Box>
     </Box>
   )

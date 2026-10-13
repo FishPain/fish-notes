@@ -30,7 +30,13 @@ const CaptureSchema = object({
   capturedAt: string()
 })
 
-const ScreenSchema = object({ pngBase64: string().required() })
+const ScreenSchema = object({
+  pngBase64: string().required(),
+  url: string().trim(),
+  appName: string().trim(),
+  windowTitle: string().trim(),
+  note: string().trim()
+})
 const UploadSchema = object({ name: string().trim().required(), text: string().required() })
 
 // Best-effort 2-3 sentence summary of an uploaded doc; '' if the model call fails.
@@ -84,9 +90,19 @@ export const captureController = (db: Database.Database, generate: GenerateFn): 
         throwHttpError(httpErrors.badRequest, Reason.MissingOrInvalidFields, res)
         return
       }
+      const source: CaptureSource = { type: 'screen' }
+      if (body.url) source.url = body.url
+      if (body.appName) source.appName = body.appName
+      if (body.windowTitle) source.windowTitle = body.windowTitle
+      // appName + windowTitle + url otherwise live only in the source JSON (not searched),
+      // so ride them in contextText to get embedded + FTS-indexed for retrieval. note is
+      // already indexed via its own column, so it must NOT be duplicated here.
+      const contextText = [body.appName, body.windowTitle, body.url].filter(Boolean).join(' — ')
       const id = await insertCapture(db, {
         content: text,
-        source: { type: 'screen' },
+        contextText,
+        note: body.note || '',
+        source,
         screenshot: `data:image/png;base64,${body.pngBase64}`,
         tags: [],
         capturedAt: new Date().toISOString()

@@ -19,7 +19,7 @@ interface Capture {
   content: string
   note: string
   tags: string[]
-  source: { type?: string; url?: string; anchor?: string; name?: string; uploadId?: string; chunkIndex?: number }
+  source: { type?: string; url?: string; anchor?: string; name?: string; uploadId?: string; chunkIndex?: number; appName?: string; windowTitle?: string }
   screenshot?: string | null
 }
 interface SearchHit {
@@ -42,6 +42,11 @@ const CaptureCard = ({ capture }: { capture: Capture }): React.ReactElement => {
       <CardContent>
         <Stack direction="row" alignItems="flex-start" spacing={1}>
           <Box sx={{ flex: 1, minWidth: 0 }}>
+            {capture.source.type === 'screen' && (capture.source.appName || capture.source.windowTitle) && (
+              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
+                🖥 {[capture.source.appName, capture.source.windowTitle].filter(Boolean).join(' — ')}
+              </Typography>
+            )}
             {capture.source.type === 'upload' && capture.source.name && (
               <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
                 📄 {capture.source.name}
@@ -233,9 +238,6 @@ const SearchView = (): React.ReactElement => {
             ...singles.map((capture) => <CaptureCard key={capture.id} capture={capture} />)
           ]}
 
-      <Typography variant="caption" sx={{ display: 'block', mt: 3, opacity: 0.5 }}>
-        Extension token: {window.engine.token} · endpoint {window.engine.baseUrl}
-      </Typography>
     </Box>
   )
 }

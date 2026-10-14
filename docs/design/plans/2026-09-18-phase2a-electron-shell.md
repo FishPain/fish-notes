@@ -311,7 +311,7 @@ No unit tests (UI wiring, verified by running the app). Keep components small; M
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Canvas Notes</title>
+    <title>Fish Notes</title>
   </head>
   <body>
     <div id="root"></div>
@@ -416,7 +416,7 @@ export const App = (): React.ReactElement => {
 
   return (
     <Box sx={{ maxWidth: 900, mx: 'auto', p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 2 }}>Canvas Notes</Typography>
+      <Typography variant="h5" sx={{ mb: 2 }}>Fish Notes</Typography>
       <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
         <TextField
           fullWidth
@@ -487,7 +487,7 @@ git commit -m "feat: react shell — search, ask, captures, token display"
 - [ ] **Step 1: Rebuild for Electron, then launch the app** (Node 24)
 
 Run: `cd app && npm run rebuild:electron && npm run dev`
-Expected: `electron-rebuild` recompiles `better-sqlite3` for Electron's ABI, then an Electron window opens showing "Canvas Notes"; the console logs `engine on http://127.0.0.1:7645`. (To run the test suite again afterward, first `npm run rebuild:node`.)
+Expected: `electron-rebuild` recompiles `better-sqlite3` for Electron's ABI, then an Electron window opens showing "Fish Notes"; the console logs `engine on http://127.0.0.1:7645`. (To run the test suite again afterward, first `npm run rebuild:node`.)
 
 - [ ] **Step 2: Verify corpus flows in the window**
   - The footer shows the extension token + endpoint.

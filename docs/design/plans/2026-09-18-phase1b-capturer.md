@@ -548,7 +548,7 @@ The pure modules above are tested; this task is the browser wiring, verified by 
 ```json
 {
   "manifest_version": 3,
-  "name": "Canvas Notes Capturer",
+  "name": "Fish Notes Capturer",
   "version": "0.1.0",
   "permissions": ["activeTab", "scripting", "storage", "contextMenus"],
   "host_permissions": ["http://localhost:7645/*"],

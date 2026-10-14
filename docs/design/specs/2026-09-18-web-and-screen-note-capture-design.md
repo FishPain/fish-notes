@@ -1,4 +1,4 @@
-# Canvas Notes — Design
+# Fish Notes — Design
 
 **Date:** 2026-09-18
 **Status:** Draft for review (redesigned: search-first, canvas-based, RAG-grounded)

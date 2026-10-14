@@ -142,10 +142,66 @@ const createWindow = (token: string): void => {
   }
 }
 
+// GitHub repo that hosts releases (public; no token needed for the releases API).
+const REPO = 'FishPain/fish-notes'
+
+// Compare dotted numeric versions: true if a > b (e.g. "0.1.2" > "0.1.1").
+const isNewer = (a: string, b: string): boolean => {
+  const pa = a.split('.').map(Number)
+  const pb = b.split('.').map(Number)
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0)
+  }
+  return false
+}
+
+// Query the latest GitHub release and compare to the running version.
+const checkForUpdate = async (): Promise<{
+  current: string
+  latest: string | null
+  hasUpdate: boolean
+  dmgUrl?: string
+  releaseUrl?: string
+}> => {
+  const current = app.getVersion()
+  try {
+    const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
+      headers: { 'User-Agent': 'FishNotes', Accept: 'application/vnd.github+json' }
+    })
+    if (!res.ok) return { current, latest: null, hasUpdate: false }
+    const rel = (await res.json()) as {
+      tag_name: string
+      html_url: string
+      assets: { name: string; browser_download_url: string }[]
+    }
+    const latest = rel.tag_name.replace(/^v/, '')
+    const dmg = rel.assets.find((a) => a.name.endsWith('.dmg'))
+    return { current, latest, hasUpdate: isNewer(latest, current), dmgUrl: dmg?.browser_download_url, releaseUrl: rel.html_url }
+  } catch {
+    return { current, latest: null, hasUpdate: false }
+  }
+}
+
+// Download a release DMG to the Downloads folder and open (mount) it for the user to install.
+const downloadUpdate = async (url: string): Promise<{ ok: boolean; path?: string }> => {
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': 'FishNotes' } })
+    if (!res.ok) return { ok: false }
+    const dest = join(app.getPath('downloads'), url.split('/').pop() || 'Fish Notes.dmg')
+    await writeFile(dest, Buffer.from(await res.arrayBuffer()))
+    shell.openPath(dest)
+    return { ok: true, path: dest }
+  } catch {
+    return { ok: false }
+  }
+}
+
 app.whenReady().then(() => {
   const token = loadOrCreateToken(app.getPath('userData'))
   ipcMain.handle('capture-region', captureRegion)
   ipcMain.handle('save-image', (_e, { dataUrl, name }: { dataUrl: string; name: string }) => saveImage(dataUrl, name))
+  ipcMain.handle('updates:check', () => checkForUpdate())
+  ipcMain.handle('updates:download', (_e, url: string) => downloadUpdate(url))
 
   // Settings: read effective config (defaults + env + saved), write overrides to
   // userData/settings.json, test the proxy, and relaunch to apply.

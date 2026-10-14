@@ -12,12 +12,17 @@ export const SettingsDialog = ({ open, onClose }: { open: boolean; onClose: () =
   const [test, setTest] = useState<{ ok: boolean; count?: number; status?: number } | null>(null)
   const [testing, setTesting] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [update, setUpdate] = useState<Awaited<ReturnType<typeof window.updates.check>> | null>(null)
+  const [checking, setChecking] = useState(false)
+  const [dl, setDl] = useState<'idle' | 'downloading' | 'opened' | 'error'>('idle')
 
   // Load config when opened, then quietly fetch the model list to fill the dropdowns.
   useEffect(() => {
     if (!open) return
     setTest(null)
     setSaved(false)
+    setUpdate(null)
+    setDl('idle')
     window.settings.get().then(async (c) => {
       setCfg(c)
       const r = await window.settings.test(c.baseUrl, c.apiKey)
@@ -38,6 +43,20 @@ export const SettingsDialog = ({ open, onClose }: { open: boolean; onClose: () =
   const save = async (): Promise<void> => {
     await window.settings.save(cfg)
     setSaved(true)
+  }
+
+  const checkUpdates = async (): Promise<void> => {
+    setChecking(true)
+    setDl('idle')
+    setUpdate(await window.updates.check())
+    setChecking(false)
+  }
+
+  const downloadUpdate = async (): Promise<void> => {
+    if (!update?.dmgUrl) return
+    setDl('downloading')
+    const r = await window.updates.download(update.dmgUrl)
+    setDl(r.ok ? 'opened' : 'error')
   }
 
   return (
@@ -88,6 +107,34 @@ export const SettingsDialog = ({ open, onClose }: { open: boolean; onClose: () =
           <Button variant="outlined" onClick={() => window.settings.openDataDir()} sx={{ alignSelf: 'flex-start', textTransform: 'none' }}>
             Open data folder
           </Button>
+
+          <Divider />
+          <Stack spacing={1}>
+            <Button variant="outlined" onClick={checkUpdates} disabled={checking} sx={{ alignSelf: 'flex-start', textTransform: 'none' }}>
+              {checking ? 'Checking…' : 'Check for updates'}
+            </Button>
+            {update && !update.hasUpdate && (
+              <Typography variant="caption" sx={{ opacity: 0.7 }}>
+                {update.latest ? `You're on the latest version (v${update.current}).` : "Couldn't check right now — try again later."}
+              </Typography>
+            )}
+            {update?.hasUpdate && update.dmgUrl && (
+              <Alert
+                severity="info"
+                action={
+                  <Button color="inherit" size="small" onClick={downloadUpdate} disabled={dl === 'downloading'}>
+                    {dl === 'downloading' ? 'Downloading…' : 'Download'}
+                  </Button>
+                }
+              >
+                Update available: v{update.latest} (you have v{update.current}).
+              </Alert>
+            )}
+            {dl === 'opened' && (
+              <Alert severity="success">Installer opened — drag Fish Notes to Applications, then reopen. First launch: right-click → Open.</Alert>
+            )}
+            {dl === 'error' && <Alert severity="error">Download failed — try again later.</Alert>}
+          </Stack>
 
           {test && (
             <Alert severity={test.ok ? 'success' : 'error'}>

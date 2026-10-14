@@ -14,6 +14,12 @@ contextBridge.exposeInMainWorld('engine', {
 // App version (from package.json via app.getVersion() in main), shown in the sidebar.
 contextBridge.exposeInMainWorld('appInfo', { version: arg('app-version') })
 
+// Check GitHub releases for a newer version and download+open its DMG.
+contextBridge.exposeInMainWorld('updates', {
+  check: () => ipcRenderer.invoke('updates:check'),
+  download: (url: string) => ipcRenderer.invoke('updates:download', url)
+})
+
 // Native screen-region capture (main runs macOS `screencapture`).
 contextBridge.exposeInMainWorld('capture', {
   region: () => ipcRenderer.invoke('capture-region'),
